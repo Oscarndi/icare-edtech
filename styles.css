@@ -1126,3 +1126,252 @@ body.lightbox-open{
     gap:3px;
   }
 }
+
+/* ==================================================================
+   ICARE R5 — PUBLIC STORY + FAQ
+   ================================================================== */
+
+.r5-history-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:18px;
+}
+
+.r5-history-card{
+  position:relative;
+  padding:26px;
+  border:1px solid var(--line);
+  border-radius:22px;
+  background:#fff;
+  box-shadow:0 10px 32px rgba(11,46,89,.055);
+}
+
+.r5-history-card::before{
+  content:"";
+  position:absolute;
+  top:0;
+  left:26px;
+  right:26px;
+  height:3px;
+  border-radius:0 0 99px 99px;
+  background:linear-gradient(90deg,var(--blue),var(--teal));
+}
+
+.r5-history-card.current{
+  background:#fff8e9;
+  border-color:#f3ca82;
+}
+
+.r5-history-card.current::before{
+  background:var(--orange);
+}
+
+.r5-history-card time{
+  display:inline-block;
+  margin-bottom:14px;
+  font-size:.8rem;
+  font-weight:900;
+  letter-spacing:.08em;
+  color:var(--teal);
+}
+
+.r5-history-card h3{
+  margin:0 0 10px;
+  color:var(--navy);
+}
+
+.r5-history-card p{
+  margin:0;
+  color:var(--muted);
+  font-size:.92rem;
+}
+
+.r5-history-next{
+  margin-top:24px;
+  padding:22px 24px;
+  border-radius:20px;
+  background:linear-gradient(135deg,var(--navy),var(--blue));
+  color:#fff;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.r5-history-next strong{
+  color:#fff;
+}
+
+.r5-history-next span{
+  color:#d6e5f3;
+}
+
+.r5-faq-section{
+  max-width:none;
+  background:linear-gradient(180deg,#fbfaf7,var(--ivory));
+}
+
+.r5-faq-grid{
+  max-width:1100px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+}
+
+.r5-faq-item{
+  align-self:start;
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:#fff;
+  box-shadow:0 8px 26px rgba(11,46,89,.045);
+  overflow:hidden;
+}
+
+.r5-faq-item summary{
+  list-style:none;
+  cursor:pointer;
+  padding:20px 52px 20px 20px;
+  font-weight:850;
+  color:var(--navy);
+  position:relative;
+}
+
+.r5-faq-item summary::-webkit-details-marker{
+  display:none;
+}
+
+.r5-faq-item summary::after{
+  content:"+";
+  position:absolute;
+  right:20px;
+  top:50%;
+  transform:translateY(-50%);
+  display:grid;
+  place-items:center;
+  width:26px;
+  height:26px;
+  border-radius:50%;
+  background:var(--ivory);
+  color:var(--teal);
+  font-size:1.15rem;
+  font-weight:900;
+}
+
+.r5-faq-item[open] summary::after{
+  content:"−";
+}
+
+.r5-faq-item p{
+  margin:0;
+  padding:0 20px 20px;
+  color:var(--muted);
+  font-size:.93rem;
+  line-height:1.65;
+}
+
+.r5-faq-document{
+  max-width:1100px;
+  margin-top:28px;
+  padding:24px;
+  border-radius:22px;
+  background:#fff;
+  border:1px solid var(--line);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:24px;
+}
+
+.r5-faq-document>div{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+}
+
+.r5-faq-document strong{
+  color:var(--navy);
+}
+
+.r5-faq-document span{
+  color:var(--muted);
+  font-size:.9rem;
+}
+
+@media(max-width:1100px){
+  .r5-history-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media(max-width:760px){
+  .r5-history-grid,
+  .r5-faq-grid{
+    grid-template-columns:1fr;
+  }
+
+  .r5-faq-document{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+}
+
+/* ICARE R5D3 — 3-minute demo video */
+
+.r5-video-document{
+  max-width:1100px;
+  margin-top:14px;
+  padding:24px;
+  border-radius:22px;
+  background:#fff;
+  border:1px solid var(--line);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:24px;
+}
+
+.r5-video-document>div{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+}
+
+.r5-video-document strong{
+  color:var(--navy);
+}
+
+.r5-video-document span{
+  color:var(--muted);
+  font-size:.9rem;
+}
+
+.r5-demo-link{
+  max-width:1240px;
+  margin:24px auto 0;
+  padding:18px 20px;
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.15);
+  background:rgba(255,255,255,.08);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+}
+
+.r5-demo-link strong{
+  color:#fff;
+}
+
+.r5-demo-link a{
+  color:#fff;
+  font-weight:850;
+  text-decoration:underline;
+  text-underline-offset:4px;
+}
+
+@media(max-width:760px){
+  .r5-video-document,
+  .r5-demo-link{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+}
