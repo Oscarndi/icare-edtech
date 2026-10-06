@@ -1,0 +1,911 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+
+  <meta
+    name="robots"
+    content="noindex,nofollow,noarchive"
+  >
+
+  <meta
+    name="referrer"
+    content="no-referrer"
+  >
+
+  <title>
+    ICARE EDTECH — Financial Strategy Room
+  </title>
+
+  <!--
+    Reuse the authoritative ICARE visual system.
+    finroom.css contains only FinRoom-specific layout/components.
+  -->
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="/finroom/finroom.css">
+</head>
+
+<body class="finroom-page">
+
+  <header class="header finroom-header">
+    <a
+      class="brand"
+      href="/"
+      aria-label="ICARE EDTECH — home"
+    >
+      <img
+        src="../assets/icare-logo.jpg"
+        alt="ICARE EDTECH"
+      >
+    </a>
+
+    <div class="finroom-header-context">
+      <span class="finroom-room-name">
+        Financial Strategy Room
+      </span>
+
+      <span class="finroom-security-label">
+        Protected access
+      </span>
+    </div>
+  </header>
+
+  <main class="finroom-main">
+
+    <section
+      id="finroom-access"
+      class="finroom-access"
+      aria-labelledby="finroom-access-title"
+    >
+      <div class="container">
+        <div class="finroom-access-grid">
+
+          <div class="finroom-intro">
+            <p class="finroom-eyebrow">
+              ICARE EDTECH · Confidential access
+            </p>
+
+            <h1 id="finroom-access-title">
+              Financial Strategy Room
+            </h1>
+
+            <p class="finroom-lead">
+              Restricted area for presenting ICARE's economic and financial strategy.
+            </p>
+
+            <p class="finroom-context">
+              The information presented in this room distinguishes established elements, current assumptions and parameters intended to be validated during pilots.
+            </p>
+          </div>
+
+          <div class="finroom-access-card">
+            <div class="finroom-lock" aria-hidden="true">
+              <span></span>
+            </div>
+
+            <h2>Enter the room</h2>
+
+            <p>
+              Enter the access code that was provided to you.
+            </p>
+
+            <form
+              id="finroom-login-form"
+              autocomplete="off"
+              novalidate
+            >
+              <label for="finroom-code">
+                Access code
+              </label>
+
+              <div class="finroom-code-row">
+                <input
+                  id="finroom-code"
+                  name="code"
+                  type="password"
+                  inputmode="text"
+                  maxlength="256"
+                  autocomplete="off"
+                  required
+                  aria-describedby="finroom-login-message"
+                >
+
+                <button
+                  id="finroom-submit"
+                  class="btn"
+                  type="submit"
+                >
+                  Enter
+                </button>
+              </div>
+
+              <p
+                id="finroom-login-message"
+                class="finroom-message"
+                role="status"
+                aria-live="polite"
+              ></p>
+            </form>
+
+            <p class="finroom-privacy-note">
+              The access code is not stored in the browser. The session expires automatically.
+            </p>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <section
+      id="finroom-protected"
+      class="finroom-protected"
+      hidden
+      aria-labelledby="finroom-title"
+    >
+      <div class="container">
+
+        <div class="finroom-room-head">
+          <div>
+            <p class="finroom-eyebrow">
+              ICARE EDTECH · Financial strategy
+            </p>
+
+            <h1 id="finroom-title">
+              Financial Strategy Room
+            </h1>
+
+            <p>
+              Business model, assumptions, scenarios and validation trajectory.
+            </p>
+          </div>
+
+          <button
+            id="finroom-logout"
+            type="button"
+            class="btn secondary finroom-secondary-button"
+          >
+            Sign out
+          </button>
+        </div>
+
+        <div
+          id="finroom-loading"
+          class="finroom-state-card"
+        >
+          <strong>Preparing the secure room</strong>
+          <p>
+            Protected financial data will be loaded from the server.
+          </p>
+        </div>
+
+        <div
+          id="finroom-content"
+          class="finroom-content"
+          hidden
+        >
+          <!--
+            Intentionally empty in FINROOM-10.
+            Protected financial content will arrive
+            from the authenticated server endpoint.
+          -->
+        </div>
+
+      </div>
+
+<section
+  id="financial-data-root"
+  class="financial-data"
+  aria-labelledby="financial-data-title"
+  hidden
+>
+  <div class="financial-data__header">
+    <div>
+      <p class="eyebrow">Protected financial model</p>
+      <h2 id="financial-data-title">
+        Financial Strategy Model
+      </h2>
+    </div>
+
+    <div
+      id="financial-model-status"
+      class="financial-model-status"
+      role="status"
+      aria-live="polite"
+    >
+      Waiting for authenticated data
+    </div>
+  </div>
+
+  <div
+    id="financial-model-summary"
+    class="financial-model-summary"
+  ></div>
+
+  <div
+    id="financial-scenarios"
+    class="financial-scenarios"
+  ></div>
+
+  <div
+    id="financial-break-even"
+    class="financial-break-even"
+  ></div>
+
+  <p class="financial-model-note">
+    Figures shown in this protected room are modeled assumptions
+    unless explicitly identified as achieved evidence.
+  </p>
+</section>
+
+      <section id="finroom-interactive-lab"
+               class="finroom-lab"
+               hidden
+               aria-labelledby="finroom-lab-title">
+        <div class="finroom-section-heading">
+          <p class="eyebrow">SIMULATION</p>
+          <h2 id="finroom-lab-title">Interactive financial laboratory</h2>
+          <p>
+            Explore explicit assumptions without changing the official
+            financial model. Calculations remain server-authoritative.
+          </p>
+        </div>
+
+        <div id="finroom-simulator-controls"
+             class="finroom-lab-region"
+             aria-label="Simulation controls">
+          <form id="finroom-simulation-form"
+                class="finroom-simulation-form">
+            <fieldset>
+              <legend>Scenario assumptions</legend>
+
+              <div class="finroom-control-grid">
+                <label>
+                  <span>Active learners</span>
+                  <input id="sim-active-students"
+                         name="active_students"
+                         type="number"
+                         min="1"
+                         step="1"
+                         required>
+                </label>
+
+                <label>
+                  <span>Device mode</span>
+                  <select id="sim-device-mode"
+                          name="device_mode">
+                    <option value="school_owned">
+                      School-owned devices
+                    </option>
+                    <option value="icare_supplied">
+                      ICARE-supplied devices
+                    </option>
+                  </select>
+                </label>
+
+                <label class="finroom-checkbox-control">
+                  <input id="sim-home-enabled"
+                         name="home_enabled"
+                         type="checkbox"
+                         checked>
+                  <span>Home continuity enabled</span>
+                </label>
+
+                <label>
+                  <span>Home conversion rate (%)</span>
+                  <input id="sim-home-conversion"
+                         name="home_conversion_rate"
+                         type="number"
+                         min="0"
+                         max="100"
+                         step="1">
+                  <span class="finroom-field-help">
+                    When home continuity is disabled, this simulation sends
+                    a 0 home-conversion rate for the ephemeral scenario only;
+                    the protected reference model is not changed.
+                  </span>
+                </label>
+
+                <label>
+                  <span>Operating cost structure</span>
+                  <select id="sim-cost-structure"
+                          name="cost_structure">
+                    <option value="current">Current</option>
+                    <option value="expanded">Expanded</option>
+                    <option value="progressive" disabled>Progressive — plan required</option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>Horizon</span>
+                  <select id="sim-horizon"
+                          name="horizon_months">
+                    <option value="12">12 months</option>
+                    <option value="24">24 months</option>
+                    <option value="36">36 months</option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>Growth mode</span>
+                  <select id="sim-growth-mode"
+                          name="growth_mode">
+                    <option value="constant_students">
+                      Constant learners
+                    </option>
+                    <option value="modeled_growth_rate">
+                      Modeled monthly growth rate
+                    </option>
+                    <option value="manual_monthly_path">
+                      Manual monthly path
+                    </option>
+                  </select>
+                </label>
+
+                <label id="sim-growth-rate-group" hidden>
+                  <span>Monthly growth rate (%)</span>
+                  <input id="sim-growth-rate"
+                         name="monthly_growth_rate"
+                         type="number"
+                         min="-99"
+                         max="1000"
+                         step="0.1"
+                         value="0">
+                </label>
+
+                <label id="sim-manual-path-group" hidden>
+                  <span>Manual monthly learner path</span>
+                  <textarea id="sim-manual-path"
+                            name="manual_monthly_path"
+                            rows="4"
+                            placeholder="Example: 300, 310, 325, ..."></textarea>
+                  <small>
+                    Enter exactly one learner count per month,
+                    separated by commas.
+                  </small>
+                </label>
+              </div>
+            </fieldset>
+
+            <p class="finroom-simulation-note">
+              <strong>SIMULATION.</strong>
+              Results are modeled consequences of explicit assumptions,
+              not forecasts or achieved evidence.
+            </p>
+
+            <div class="finroom-simulation-actions">
+              <button type="button"
+                      id="finroom-run-snapshot">
+                Calculate current snapshot
+              </button>
+
+              <button type="submit"
+                      id="finroom-run-simulation">
+                Run trajectory simulation
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div id="finroom-simulation-status"
+             class="finroom-lab-status"
+             role="status"
+             aria-live="polite"></div>
+
+        <section id="finroom-trajectory-result"
+                 class="finroom-trajectory-result"
+                 hidden
+                 aria-labelledby="finroom-trajectory-title">
+          <div class="finroom-result-heading">
+            <div>
+              <p class="eyebrow">SIMULATION</p>
+              <h2 id="finroom-trajectory-title">
+                Financial trajectory
+              </h2>
+              <p id="finroom-trajectory-explanation">
+                Server-calculated monthly trajectory. This is a
+                scenario simulation, not a forecast.
+              </p>
+            </div>
+          </div>
+
+          <div id="finroom-trajectory-summary"
+               class="finroom-result-grid"
+               aria-live="polite"></div>
+
+          <div class="finroom-trajectory-table-wrap"
+               tabindex="0"
+               aria-label="Scrollable monthly financial trajectory">
+            <table class="finroom-trajectory-table">
+              <caption>
+                Monthly server-calculated financial trajectory
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Month</th>
+                  <th scope="col">Active learners</th>
+                  <th scope="col">Classes</th>
+                  <th scope="col">School CA</th>
+                  <th scope="col">Home CA</th>
+                  <th scope="col">Total CA</th>
+                  <th scope="col">School teacher incentives</th>
+                  <th scope="col">Home teacher costs</th>
+                  <th scope="col">Contribution</th>
+                  <th scope="col">Operating costs</th>
+                  <th scope="col">Monthly gap</th>
+                  <th scope="col">Cumulative operating gap</th>
+                  <th scope="col">CAPEX</th>
+                  <th scope="col">Cumulative CAPEX</th>
+                  <th scope="col">Cumulative coverage</th>
+                  <th scope="col">Monthly break-even</th>
+                </tr>
+              </thead>
+              <tbody id="finroom-trajectory-body"></tbody>
+            </table>
+          </div>
+
+          <div id="finroom-trajectory-notes"
+               class="finroom-result-note"></div>
+        </section>
+
+        <section id="finroom-simulation-summary"
+                 class="finroom-lab-region"
+                 aria-label="Simulation summary"></section>
+
+        <section id="finroom-trajectory"
+                 class="finroom-lab-region"
+                 aria-label="Financial trajectory"></section>
+
+        <!-- ICARE FINROOM E2-D4C — server-authoritative break-even graph -->
+        <section id="finroom-break-even-graph"
+                 class="finroom-lab-region finroom-break-even-graph"
+                 aria-labelledby="finroom-break-even-graph-title">
+          <div class="finroom-result-heading">
+            <div>
+              <p class="eyebrow">MONTHLY OPERATING BREAK-EVEN</p>
+              <h3 id="finroom-break-even-graph-title">
+                Contribution vs modeled operating costs
+              </h3>
+            </div>
+            <span class="finroom-status-chip">SIMULATION</span>
+          </div>
+
+          <p class="finroom-result-note">
+            Explore the modeled monthly operating break-even for the current
+            laboratory assumptions. Financial values and the exact threshold
+            are calculated by the protected server; the browser only presents
+            the returned result.
+          </p>
+
+          <div class="finroom-break-even-guide"
+               aria-labelledby="finroom-break-even-guide-title">
+            <h4 id="finroom-break-even-guide-title">How to read this graph</h4>
+            <ul>
+              <li>
+                <strong>Contribution used for operating-cost coverage</strong>
+                is the contribution selected by the server for this scenario.
+              </li>
+              <li>
+                <strong>Modeled operating costs</strong> are the operating
+                costs returned by the protected model.
+              </li>
+              <li>
+                The exact break-even is the smallest modeled learner count
+                identified by the server where monthly contribution covers
+                modeled operating costs.
+              </li>
+            </ul>
+          </div>
+
+          <div class="finroom-break-even-actions">
+            <button id="finroom-run-break-even-graph"
+                    type="button"
+                    class="finroom-secondary-action">
+              Generate break-even graph
+            </button>
+          </div>
+
+          <div id="finroom-break-even-status"
+               class="finroom-lab-status"
+               role="status"
+               aria-live="polite"></div>
+
+          <div id="finroom-break-even-result"
+               class="finroom-break-even-result"
+               hidden>
+            <div id="finroom-break-even-exact"
+                 class="finroom-break-even-exact"
+                 aria-live="polite"></div>
+
+            <div class="finroom-break-even-legend"
+                 aria-label="Break-even graph legend">
+              <span>
+                <span class="finroom-legend-line finroom-legend-contribution"
+                      aria-hidden="true"></span>
+                Contribution used for operating-cost coverage
+              </span>
+              <span>
+                <span class="finroom-legend-line finroom-legend-costs"
+                      aria-hidden="true"></span>
+                Modeled operating costs
+              </span>
+            </div>
+
+            <div class="finroom-break-even-chart-wrap">
+              <svg id="finroom-break-even-svg"
+                   class="finroom-break-even-svg"
+                   viewBox="0 0 900 460"
+                   role="img"
+                   aria-labelledby="finroom-break-even-svg-title finroom-break-even-svg-desc">
+                <title id="finroom-break-even-svg-title">
+                  Monthly operating break-even graph
+                </title>
+                <desc id="finroom-break-even-svg-desc">
+                  Server-calculated contribution used for operating-cost
+                  coverage and modeled operating costs by active learner count.
+                  The exact numerical values are also available in the table
+                  below.
+                </desc>
+              </svg>
+            </div>
+
+            <div class="finroom-table-wrap finroom-break-even-table-wrap"
+                 tabindex="0"
+                 aria-label="Scrollable break-even graph data table">
+              <table class="finroom-result-table finroom-break-even-table">
+                <caption>
+                  Server-returned points used to draw the monthly operating
+                  break-even graph
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Active learners</th>
+                    <th scope="col">
+                      Contribution used for operating-cost coverage
+                    </th>
+                    <th scope="col">Modeled operating costs</th>
+                    <th scope="col">Monthly coverage gap</th>
+                    <th scope="col">Break-even reached</th>
+                  </tr>
+                </thead>
+                <tbody id="finroom-break-even-body"></tbody>
+              </table>
+            </div>
+
+            <div id="finroom-break-even-notes"
+                 class="finroom-result-notes">
+              <p>
+                SIMULATION — not a forecast. Contribution is not profit or
+                net margin. CAPEX is excluded from monthly operating
+                break-even. Cumulative recovery including CAPEX is a separate
+                metric. This graph is not a probability, score or
+                recommendation.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section id="finroom-sensitivity"
+                 class="finroom-lab-region"
+                 aria-labelledby="finroom-sensitivity-title">
+          <div class="finroom-result-heading">
+            <div>
+              <p class="eyebrow">MODELED SENSITIVITY</p>
+              <h3 id="finroom-sensitivity-title">Compare explicit scenarios</h3>
+            </div>
+            <span class="finroom-status-chip">SIMULATION</span>
+          </div>
+
+          <p class="finroom-result-note">
+            Compare the current laboratory configuration with one explicit
+            variant. The first scenario is only a technical reference.
+            This analysis is not a forecast, probability, ranking or
+            recommendation.
+          </p>
+
+          <div class="finroom-sensitivity-guide"
+               aria-labelledby="finroom-sensitivity-guide-title">
+            <h4 id="finroom-sensitivity-guide-title">
+              How to use sensitivity
+            </h4>
+
+            <ol>
+              <li>
+                <strong>Reference.</strong>
+                Your current laboratory configuration is used as the
+                technical reference.
+              </li>
+              <li>
+                <strong>Change.</strong>
+                Modify one or more assumptions below to create an explicit
+                comparison variant.
+              </li>
+              <li>
+                <strong>Compare.</strong>
+                Select <strong>Compare scenarios</strong>. FinRoom calculates
+                both scenarios on the server.
+              </li>
+              <li>
+                <strong>Interpret.</strong>
+                Read the differences in revenue, contribution, operating
+                costs, CAPEX and coverage gaps. Positive or negative
+                differences are changes relative to the reference, not
+                scores or recommendations.
+              </li>
+            </ol>
+          </div>
+
+          <form id="finroom-sensitivity-form"
+                class="finroom-sensitivity-form">
+            <fieldset>
+              <legend>Variant to compare with the current configuration</legend>
+
+              <div class="finroom-control-grid">
+                <label>
+                  Variant label
+                  <input id="sens-label"
+                         name="sensitivity_label"
+                         type="text"
+                         value="Comparison variant"
+                         maxlength="80"
+                         required>
+                </label>
+
+                <label>
+                  Active learners
+                  <input id="sens-active-students"
+                         name="sensitivity_active_students"
+                         type="number"
+                         min="1"
+                         step="1"
+                         required>
+                </label>
+
+                <label>
+                  Device mode
+                  <select id="sens-device-mode"
+                          name="sensitivity_device_mode">
+                    <option value="school_owned">School-owned devices</option>
+                    <option value="icare_supplied">ICARE-supplied devices</option>
+                  </select>
+                </label>
+
+                <label>
+                  Home conversion rate (%)
+                  <input id="sens-home-conversion"
+                         name="sensitivity_home_conversion"
+                         type="number"
+                         min="0"
+                         max="100"
+                         step="0.01"
+                         required>
+                  <span class="finroom-field-help">
+                    Human-readable percentage. Example: 30 = 30%.
+                  </span>
+                </label>
+
+                <label>
+                  Cost structure
+                  <select id="sens-cost-structure"
+                          name="sensitivity_cost_structure">
+                    <option value="current">Current</option>
+                    <option value="expanded">Expanded</option>
+                  </select>
+                </label>
+
+                <label>
+                  Monthly modeled growth rate (%)
+                  <input id="sens-growth-rate"
+                         name="sensitivity_growth_rate"
+                         type="number"
+                         min="-99"
+                         max="1000"
+                         step="0.01"
+                         value="0">
+                  <span class="finroom-field-help">
+                    Human-readable monthly percentage; sensitivity assumption only,
+                    not a customer-acquisition forecast.
+                  </span>
+                </label>
+              </div>
+            </fieldset>
+
+            <button id="finroom-run-sensitivity"
+                    type="submit"
+                    class="finroom-secondary-action">
+              Compare scenarios
+            </button>
+          </form>
+
+          <div id="finroom-sensitivity-status"
+               class="finroom-lab-status"
+               role="status"
+               aria-live="polite"></div>
+
+          <div id="finroom-sensitivity-result"
+               class="finroom-sensitivity-result"
+               hidden>
+            <div id="finroom-sensitivity-cards"
+                 class="finroom-sensitivity-cards"></div>
+
+            <div class="finroom-table-wrap">
+              <table class="finroom-result-table">
+                <caption>
+                  Server-calculated differences relative to the technical
+                  reference scenario
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Scenario</th>
+                    <th scope="col">Revenue</th>
+                    <th scope="col">Contribution</th>
+                    <th scope="col">Operating costs</th>
+                    <th scope="col">CAPEX</th>
+                    <th scope="col">Ending monthly gap</th>
+                    <th scope="col">Ending cumulative gap</th>
+                  </tr>
+                </thead>
+                <tbody id="finroom-sensitivity-body"></tbody>
+              </table>
+            </div>
+
+            <div id="finroom-sensitivity-notes"
+                 class="finroom-result-notes"></div>
+          </div>
+        </section>
+
+        <section id="finroom-field-calibration"
+                 class="finroom-lab-region finroom-field-calibration"
+                 aria-labelledby="finroom-field-calibration-title">
+          <div class="finroom-section-heading">
+            <div>
+              <p class="eyebrow">FIELD → MODEL</p>
+              <h2 id="finroom-field-calibration-title">
+                From assumptions to field evidence
+              </h2>
+            </div>
+            <span class="finroom-status-chip">TO VALIDATE</span>
+          </div>
+
+          <p class="finroom-field-intro">
+            ICARE's financial model is designed to evolve from observed
+            evidence. Field observations may support a proposed revision,
+            but they never update or approve the official model automatically.
+          </p>
+
+          <div id="finroom-explanation-framework"
+               class="finroom-explanation-grid"
+               aria-label="Financial result interpretation framework">
+            <article class="finroom-explanation-card">
+              <h3>1. What does the result mean?</h3>
+              <p>
+                Read the modeled revenue, contribution, operating gap,
+                CAPEX and break-even measures in the context of the explicit
+                scenario assumptions.
+              </p>
+            </article>
+
+            <article class="finroom-explanation-card">
+              <h3>2. What drives it?</h3>
+              <p>
+                Active learners, device mode, home continuity, conversion,
+                cost structure, growth assumptions and time horizon can
+                change the modeled outcome.
+              </p>
+            </article>
+
+            <article class="finroom-explanation-card">
+              <h3>3. What is excluded?</h3>
+              <p>
+                A modeled contribution is not profit. Costs still marked
+                TO VALIDATE or DEFERRED remain outside a complete economic
+                conclusion until evidence is available.
+              </p>
+            </article>
+
+            <article class="finroom-explanation-card">
+              <h3>4. What evidence is needed?</h3>
+              <p>
+                Pilot observations should document the metric, observed
+                value, sample size, observation period, recording date and
+                source before an assumption revision is reviewed.
+              </p>
+            </article>
+          </div>
+
+          <div class="finroom-evidence-flow"
+               aria-label="Field evidence governance workflow">
+            <article>
+              <span class="finroom-flow-step">1</span>
+              <h3>Current assumption</h3>
+              <span class="finroom-status-chip">CURRENT ASSUMPTION</span>
+              <p>
+                A working input used by the model while its evidence base
+                is still being strengthened.
+              </p>
+            </article>
+
+            <article>
+              <span class="finroom-flow-step">2</span>
+              <h3>Field observation</h3>
+              <span class="finroom-status-chip">ACHIEVED</span>
+              <p>
+                Record what was actually observed, with sample size,
+                period, date and source. Evidence is not approval.
+              </p>
+            </article>
+
+            <article>
+              <span class="finroom-flow-step">3</span>
+              <h3>Proposed revision</h3>
+              <span class="finroom-status-chip">TO VALIDATE</span>
+              <p>
+                Evidence may justify proposing a different value or
+                maturity status. The proposal is not yet adopted.
+              </p>
+            </article>
+
+            <article>
+              <span class="finroom-flow-step">4</span>
+              <h3>Human review</h3>
+              <span class="finroom-status-chip">TO VALIDATE</span>
+              <p>
+                The evidence, interpretation and proposed revision must
+                be reviewed explicitly before any official change.
+              </p>
+            </article>
+
+            <article>
+              <span class="finroom-flow-step">5</span>
+              <h3>Explicit adoption</h3>
+              <span class="finroom-status-chip">DEFERRED</span>
+              <p>
+                Adoption into the official model is a separate governed
+                action. This browser lab neither persists nor performs it.
+              </p>
+            </article>
+          </div>
+
+          <div class="finroom-field-contract">
+            <h3>Evidence record required for calibration</h3>
+            <dl>
+              <div><dt>Metric</dt><dd>What was measured.</dd></div>
+              <div><dt>Observed value</dt><dd>The field value recorded.</dd></div>
+              <div><dt>Sample size</dt><dd>Number of observations represented.</dd></div>
+              <div><dt>Observation period</dt><dd>When the evidence was collected.</dd></div>
+              <div><dt>Recorded at</dt><dd>When the record was created.</dd></div>
+              <div><dt>Source</dt><dd>Traceable provenance of the observation.</dd></div>
+              <div><dt>Notes</dt><dd>Optional context; not an approval field.</dd></div>
+            </dl>
+          </div>
+
+          <div class="finroom-governance-note" role="note">
+            <strong>Governance boundary.</strong>
+            Source provenance does not mean validation. An observation is
+            evidence, a revision is a proposal, and the official model is
+            changed only after human review and explicit adoption. Nothing
+            entered or explored in this FinRoom is automatically persisted.
+          </div>
+        </section>
+      </section>
+</section>
+
+
+
+
+</main>
+
+  <footer class="finroom-footer">
+    <div class="container">
+      <p>
+        ICARE EDTECH · Confidential working document
+      </p>
+    </div>
+  </footer>
+
+  <script src="/finroom/finroom.js" defer></script>
+</body>
+</html>

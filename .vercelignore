@@ -1,0 +1,9 @@
+# ICARE FinRoom — local/development material excluded from deployments
+.git
+.vercel
+.env
+.env.*
+_ops
+*.log
+.DS_Store
+Thumbs.db
