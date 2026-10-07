@@ -315,7 +315,7 @@
                           name="cost_structure">
                     <option value="current">Current</option>
                     <option value="expanded">Expanded</option>
-                    <option value="progressive" disabled>Progressive — plan required</option>
+                    <option value="progressive">Progressive</option>
                   </select>
                 </label>
 
@@ -328,6 +328,63 @@
                     <option value="36">36 months</option>
                   </select>
                 </label>
+
+                <div id="sim-progressive-plan"
+                     class="finroom-progressive-plan"
+                     hidden>
+                  <div class="finroom-progressive-plan-head">
+                    <div>
+                      <strong>Progressive operating-cost plan</strong>
+                      <span class="finroom-field-help">
+                        Explicit scenario assumptions only. FinRoom sends this
+                        plan to the protected server; the browser does not
+                        calculate operating costs or break-even.
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="finroom-control-grid">
+                    <label>
+                      <span>Progressive base structure</span>
+                      <select id="sim-progressive-base-structure">
+                        <option value="current">Current</option>
+                        <option value="expanded">Expanded</option>
+                      </select>
+                    </label>
+
+                    <label>
+                      <span>Break-even evaluation month</span>
+                      <input id="sim-progressive-month"
+                             type="number"
+                             min="1"
+                             max="12"
+                             step="1"
+                             value="1">
+                      <span class="finroom-field-help">
+                        The graph shows the exact server-calculated operating
+                        break-even for this selected month.
+                      </span>
+                    </label>
+                  </div>
+
+                  <div class="finroom-progressive-events-head">
+                    <strong>Cost events</strong>
+                    <button id="sim-progressive-add-event"
+                            type="button"
+                            class="finroom-secondary-action">
+                      Add cost event
+                    </button>
+                  </div>
+
+                  <div id="sim-progressive-events"
+                       class="finroom-progressive-events"
+                       aria-live="polite"></div>
+
+                  <div id="sim-progressive-plan-status"
+                       class="finroom-lab-status"
+                       role="status"
+                       aria-live="polite"></div>
+                </div>
 
                 <label>
                   <span>Growth mode</span>
@@ -518,6 +575,11 @@
                hidden>
             <div id="finroom-break-even-exact"
                  class="finroom-break-even-exact"
+                 aria-live="polite"></div>
+
+            <div id="finroom-break-even-progressive-context"
+                 class="finroom-break-even-progressive-context"
+                 hidden
                  aria-live="polite"></div>
 
             <div class="finroom-break-even-legend"

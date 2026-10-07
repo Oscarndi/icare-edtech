@@ -1451,3 +1451,62 @@
   font-weight: 600;
   opacity: 0.85;
 }
+
+/* ICARE FINROOM R4F-E1 — Progressive operating-cost plan editor */
+
+.finroom-progressive-plan {
+  grid-column: 1 / -1;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border, currentColor);
+  border-radius: 0.9rem;
+}
+
+.finroom-progressive-plan[hidden] {
+  display: none;
+}
+
+.finroom-progressive-plan-head,
+.finroom-progressive-events-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.finroom-progressive-events {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.finroom-progressive-event {
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid var(--border, currentColor);
+  border-radius: 0.75rem;
+}
+
+.finroom-progressive-event legend {
+  font-weight: 700;
+}
+
+.finroom-progressive-event [hidden] {
+  display: none;
+}
+
+.finroom-break-even-progressive-context {
+  margin: 0.75rem 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border, currentColor);
+  border-radius: 0.75rem;
+  font-weight: 600;
+}
+
+@media (max-width: 700px) {
+  .finroom-progressive-plan-head,
+  .finroom-progressive-events-head {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}

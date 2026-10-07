@@ -186,6 +186,19 @@
       }
 
       /*
+       * Progressive operating break-even is month-specific and
+       * plan-dependent. The historical cross-surface cache below
+       * identifies only the generic Current/Expanded scenario.
+       *
+       * Never place a Progressive exact threshold in that cache.
+       * The Progressive graph already renders response.break_even
+       * directly from the protected server response.
+       */
+      if (overrides.cost_structure === 'progressive') {
+        return;
+      }
+
+      /*
        * Cache ONLY the exact threshold already returned by the server.
        * No interpolation and no financial calculation occurs here.
        */
@@ -1156,6 +1169,21 @@
         growth_mode: growthMode.value
       }
     };
+
+    if (costStructure.value === 'progressive') {
+      const progressive =
+        window.ICARE_FINROOM_PROGRESSIVE_PLAN_UI
+          ?.readPlan();
+
+      if (!progressive) {
+        throw new Error(
+          'Progressive plan controls are unavailable.'
+        );
+      }
+
+      request.options.progressive_cost_plan =
+        progressive.progressive_cost_plan;
+    }
 
     if (growthMode.value === 'modeled_growth_rate') {
       const rate = Number(growthRate.value);
@@ -3073,6 +3101,448 @@
   );
 })();
 
+
+/*
+ * ICARE FINROOM R4F-E1
+ * Progressive operating-cost plan editor.
+ *
+ * Presentation and request-shaping only.
+ * No operating-cost or break-even calculation occurs here.
+ */
+(() => {
+  'use strict';
+
+  const costStructure =
+    document.getElementById('sim-cost-structure');
+
+  const horizon =
+    document.getElementById('sim-horizon');
+
+  const root =
+    document.getElementById('sim-progressive-plan');
+
+  const baseStructure =
+    document.getElementById(
+      'sim-progressive-base-structure'
+    );
+
+  const month =
+    document.getElementById('sim-progressive-month');
+
+  const eventsRoot =
+    document.getElementById('sim-progressive-events');
+
+  const addButton =
+    document.getElementById('sim-progressive-add-event');
+
+  const planStatus =
+    document.getElementById(
+      'sim-progressive-plan-status'
+    );
+
+  if (
+    !costStructure ||
+    !horizon ||
+    !root ||
+    !baseStructure ||
+    !month ||
+    !eventsRoot ||
+    !addButton ||
+    !planStatus
+  ) {
+    return;
+  }
+
+  let eventSequence = 0;
+
+  const signalChange = () => {
+    document.dispatchEvent(
+      new CustomEvent(
+        'icare:finroom-progressive-plan-change'
+      )
+    );
+  };
+
+  const numeric = (input, label, options = {}) => {
+    const value = Number(
+      String(input.value ?? '').replace(',', '.')
+    );
+
+    if (
+      !Number.isFinite(value) ||
+      (
+        options.integer === true &&
+        !Number.isInteger(value)
+      ) ||
+      (
+        options.min !== undefined &&
+        value < options.min
+      )
+    ) {
+      throw new Error(label);
+    }
+
+    return value;
+  };
+
+  const createSelect = values => {
+    const select = document.createElement('select');
+
+    for (const [value, label] of values) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      select.appendChild(option);
+    }
+
+    return select;
+  };
+
+  const labeled = (text, control) => {
+    const label = document.createElement('label');
+    const span = document.createElement('span');
+
+    span.textContent = text;
+    label.append(span, control);
+
+    return label;
+  };
+
+  const syncEventFields = row => {
+    const kind =
+      row.querySelector('[data-progressive-kind]');
+
+    const deltaGroup =
+      row.querySelector('[data-progressive-delta-group]');
+
+    const hiringGroup =
+      row.querySelector('[data-progressive-hiring-group]');
+
+    const hiring = kind.value === 'hiring';
+
+    deltaGroup.hidden = hiring;
+    hiringGroup.hidden = !hiring;
+
+    deltaGroup.querySelector('input').disabled = hiring;
+
+    for (const input of hiringGroup.querySelectorAll('input')) {
+      input.disabled = !hiring;
+    }
+  };
+
+  const addEvent = () => {
+    eventSequence += 1;
+
+    const row = document.createElement('fieldset');
+    row.className = 'finroom-progressive-event';
+    row.dataset.progressiveEvent = 'true';
+
+    const legend = document.createElement('legend');
+    legend.textContent = 'Cost event ' + eventSequence;
+
+    const grid = document.createElement('div');
+    grid.className = 'finroom-control-grid';
+
+    const id = document.createElement('input');
+    id.type = 'text';
+    id.value = 'event-' + eventSequence;
+    id.dataset.progressiveId = 'true';
+
+    const kind = createSelect([
+      ['cost_change', 'Cost change'],
+      ['hiring', 'Hiring']
+    ]);
+    kind.dataset.progressiveKind = 'true';
+
+    const start = document.createElement('input');
+    start.type = 'number';
+    start.min = '1';
+    start.step = '1';
+    start.value = '1';
+    start.dataset.progressiveStartMonth = 'true';
+
+    const status = createSelect([
+      ['achieved', 'Achieved'],
+      ['current_assumption', 'Current assumption'],
+      ['to_validate', 'To validate'],
+      ['deferred', 'Deferred']
+    ]);
+    status.value = 'to_validate';
+    status.dataset.progressiveStatus = 'true';
+
+    const deltaGroup = document.createElement('div');
+    deltaGroup.dataset.progressiveDeltaGroup = 'true';
+
+    const delta = document.createElement('input');
+    delta.type = 'number';
+    delta.step = '1';
+    delta.value = '0';
+    delta.dataset.progressiveMonthlyDelta = 'true';
+
+    deltaGroup.appendChild(
+      labeled('Monthly cost change (FCFA)', delta)
+    );
+
+    const hiringGroup = document.createElement('div');
+    hiringGroup.dataset.progressiveHiringGroup = 'true';
+
+    const headcount = document.createElement('input');
+    headcount.type = 'number';
+    headcount.min = '1';
+    headcount.step = '1';
+    headcount.value = '1';
+    headcount.dataset.progressiveHeadcount = 'true';
+
+    const unitCost = document.createElement('input');
+    unitCost.type = 'number';
+    unitCost.min = '0';
+    unitCost.step = '1';
+    unitCost.value = '0';
+    unitCost.dataset.progressiveUnitCost = 'true';
+
+    hiringGroup.append(
+      labeled('Headcount delta', headcount),
+      labeled('Monthly unit cost (FCFA)', unitCost)
+    );
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'finroom-secondary-action';
+    remove.textContent = 'Remove event';
+
+    grid.append(
+      labeled('Event ID', id),
+      labeled('Event kind', kind),
+      labeled('Start month', start),
+      labeled('Evidence status', status),
+      deltaGroup,
+      hiringGroup
+    );
+
+    row.append(legend, grid, remove);
+    eventsRoot.appendChild(row);
+
+    syncEventFields(row);
+
+    kind.addEventListener('change', () => {
+      syncEventFields(row);
+      signalChange();
+    });
+
+    row.addEventListener('input', signalChange);
+    row.addEventListener('change', signalChange);
+
+    remove.addEventListener('click', () => {
+      row.remove();
+      signalChange();
+    });
+
+    signalChange();
+  };
+
+  const syncVisibility = () => {
+    const progressive =
+      costStructure.value === 'progressive';
+
+    root.hidden = !progressive;
+
+    if (progressive) {
+      syncHorizon();
+    }
+  };
+
+  const syncHorizon = () => {
+    const months = Number(horizon.value);
+
+    if (![12, 24, 36].includes(months)) {
+      return;
+    }
+
+    month.max = String(months);
+
+    const selected = Number(month.value);
+
+    if (
+      !Number.isInteger(selected) ||
+      selected < 1
+    ) {
+      month.value = '1';
+    } else if (selected > months) {
+      month.value = String(months);
+    }
+  };
+
+  const readPlan = () => {
+    const horizonMonths = Number(horizon.value);
+
+    if (![12, 24, 36].includes(horizonMonths)) {
+      throw new Error(
+        'Progressive horizon must be 12, 24 or 36 months.'
+      );
+    }
+
+    const selectedMonth = numeric(
+      month,
+      'Progressive evaluation month must be a positive integer.',
+      { integer: true, min: 1 }
+    );
+
+    if (selectedMonth > horizonMonths) {
+      throw new Error(
+        'Progressive evaluation month cannot exceed the selected horizon.'
+      );
+    }
+
+    const events = [];
+    const ids = new Set();
+
+    for (
+      const row of eventsRoot.querySelectorAll(
+        '[data-progressive-event]'
+      )
+    ) {
+      const id =
+        String(
+          row.querySelector(
+            '[data-progressive-id]'
+          ).value || ''
+        ).trim();
+
+      if (!id) {
+        throw new Error(
+          'Every Progressive event requires an ID.'
+        );
+      }
+
+      if (ids.has(id)) {
+        throw new Error(
+          'Progressive event IDs must be unique.'
+        );
+      }
+
+      ids.add(id);
+
+      const kind =
+        row.querySelector(
+          '[data-progressive-kind]'
+        ).value;
+
+      const startMonth = numeric(
+        row.querySelector(
+          '[data-progressive-start-month]'
+        ),
+        'Event start month must be a positive integer.',
+        { integer: true, min: 1 }
+      );
+
+      if (startMonth > horizonMonths) {
+        throw new Error(
+          'Event start month cannot exceed the selected horizon.'
+        );
+      }
+
+      const status =
+        row.querySelector(
+          '[data-progressive-status]'
+        ).value;
+
+      const event = {
+        id,
+        kind,
+        start_month: startMonth,
+        status
+      };
+
+      if (kind === 'cost_change') {
+        event.monthly_delta = numeric(
+          row.querySelector(
+            '[data-progressive-monthly-delta]'
+          ),
+          'Monthly cost change must be a finite number.'
+        );
+      } else if (kind === 'hiring') {
+        event.headcount_delta = numeric(
+          row.querySelector(
+            '[data-progressive-headcount]'
+          ),
+          'Headcount delta must be a positive integer.',
+          { integer: true, min: 1 }
+        );
+
+        event.monthly_unit_cost = numeric(
+          row.querySelector(
+            '[data-progressive-unit-cost]'
+          ),
+          'Monthly unit cost must be zero or greater.',
+          { min: 0 }
+        );
+      } else {
+        throw new Error(
+          'Unsupported Progressive event kind.'
+        );
+      }
+
+      events.push(event);
+    }
+
+    planStatus.dataset.state = '';
+    planStatus.textContent =
+      'Progressive plan valid for request submission.';
+
+    return {
+      progressive_month: selectedMonth,
+      progressive_horizon_months: horizonMonths,
+      progressive_cost_plan: {
+        base_structure: baseStructure.value,
+        events
+      }
+    };
+  };
+
+  const safeReadPlan = () => {
+    try {
+      return readPlan();
+    } catch (error) {
+      planStatus.dataset.state = 'rejected';
+      planStatus.textContent = error.message;
+      throw error;
+    }
+  };
+
+  costStructure.addEventListener('change', () => {
+    syncVisibility();
+    signalChange();
+  });
+
+  horizon.addEventListener('change', () => {
+    syncHorizon();
+    signalChange();
+  });
+
+  horizon.addEventListener('input', () => {
+    syncHorizon();
+  });
+
+  baseStructure.addEventListener(
+    'change',
+    signalChange
+  );
+
+  month.addEventListener('input', signalChange);
+  month.addEventListener('change', signalChange);
+
+  addButton.addEventListener('click', addEvent);
+
+  window.ICARE_FINROOM_PROGRESSIVE_PLAN_UI =
+    Object.freeze({
+      readPlan: safeReadPlan,
+      syncVisibility,
+      syncHorizon
+    });
+
+  syncVisibility();
+})();
+
 /*
  * ICARE FINROOM E2-D4C
  * Monthly operating break-even graph.
@@ -3183,13 +3653,6 @@
       throw new Error('graph_reference_controls_unavailable');
     }
 
-    if (
-      cost.value !== 'current' &&
-      cost.value !== 'expanded'
-    ) {
-      throw new Error('graph_progressive_cost_structure_unavailable');
-    }
-
     const humanConversion =
       Number(String(conversion.value).replace(',', '.'));
 
@@ -3225,11 +3688,37 @@
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          operation: 'break_even_graph',
-          overrides: readScenario(),
-          options: {}
-        })
+        body: JSON.stringify((() => {
+          const overrides = readScenario();
+          const options = {};
+
+          if (overrides.cost_structure === 'progressive') {
+            const progressive =
+              window.ICARE_FINROOM_PROGRESSIVE_PLAN_UI
+                ?.readPlan();
+
+            if (!progressive) {
+              throw new Error(
+                'graph_progressive_plan_unavailable'
+              );
+            }
+
+            options.progressive_month =
+              progressive.progressive_month;
+
+            options.progressive_horizon_months =
+              progressive.progressive_horizon_months;
+
+            options.progressive_cost_plan =
+              progressive.progressive_cost_plan;
+          }
+
+          return {
+            operation: 'break_even_graph',
+            overrides,
+            options
+          };
+        })())
       }
     );
 
@@ -3869,6 +4358,43 @@
   };
 
   const renderGraph = data => {
+    const progressiveContext =
+      document.getElementById(
+        'finroom-break-even-progressive-context'
+      );
+
+    if (progressiveContext) {
+      const context =
+        data.progressive_cost_context;
+
+      if (
+        data.inputs?.cost_structure === 'progressive' &&
+        context &&
+        typeof context === 'object'
+      ) {
+        progressiveContext.hidden = false;
+
+        progressiveContext.textContent =
+          'Progressive month ' +
+          number(context.month) +
+          ' · base structure: ' +
+          String(context.base_structure) +
+          ' · server-resolved operating costs: ' +
+          money(context.total_monthly) +
+          ' · active cost events: ' +
+          (
+            Array.isArray(context.active_event_ids) &&
+            context.active_event_ids.length
+              ? context.active_event_ids.join(', ')
+              : 'none'
+          ) +
+          '.';
+      } else {
+        progressiveContext.hidden = true;
+        progressiveContext.textContent = '';
+      }
+    }
+
     const semantics =
       data.semantics &&
       typeof data.semantics === 'object'
@@ -3922,11 +4448,17 @@
         'Monthly operating break-even graph calculated by the server.';
 
       if (
+        data.inputs?.cost_structure !== 'progressive' &&
         data.break_even &&
         Number.isFinite(
           Number(data.break_even.active_students)
         )
       ) {
+        /*
+         * Generic cross-surface threshold cache is intentionally
+         * Current/Expanded only. Progressive exact thresholds are
+         * month-specific and remain local to the graph response.
+         */
         document.dispatchEvent(
           new CustomEvent(
             'icare:finroom-break-even-ready',
@@ -3967,11 +4499,17 @@
 
       if (
         error &&
-        error.message ===
-          'graph_progressive_cost_structure_unavailable'
+        (
+          error.message ===
+            'graph_progressive_plan_unavailable' ||
+          String(error.message || '').includes(
+            'Progressive'
+          )
+        )
       ) {
         status.textContent =
-          'The break-even graph currently supports Current or Expanded cost structures only. Progressive cost structure remains unavailable for graph V1.';
+          error.message ||
+          'Review the Progressive plan before generating the graph.';
       } else if (
         error &&
         error.message === 'graph_authentication_required'
@@ -4212,24 +4750,16 @@
     }
 
     if (runGraph) {
-      if (
-        costStructure.value === 'current' ||
-        costStructure.value === 'expanded'
-      ) {
-        /*
-         * The graph click handler captures this synchronously,
-         * therefore the attribute can be removed immediately.
-         */
-        graphButton.dataset.finroomLiveUpdate = 'true';
+      /*
+       * The graph click handler captures this synchronously,
+       * therefore the attribute can be removed immediately.
+       * Progressive uses the same server-backed graph path.
+       */
+      graphButton.dataset.finroomLiveUpdate = 'true';
 
-        graphButton.click();
+      graphButton.click();
 
-        delete graphButton.dataset.finroomLiveUpdate;
-      } else if (graphStatus) {
-        graphStatus.textContent =
-          'Live break-even graph is available for Current ' +
-          'or Expanded cost structures only.';
-      }
+      delete graphButton.dataset.finroomLiveUpdate;
     }
   };
 
@@ -4300,6 +4830,11 @@
 
   costStructure.addEventListener(
     'change',
+    scheduleReferenceScenario
+  );
+
+  document.addEventListener(
+    'icare:finroom-progressive-plan-change',
     scheduleReferenceScenario
   );
 

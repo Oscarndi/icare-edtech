@@ -452,12 +452,6 @@ function computeBreakEvenGraph(
   const costStructure =
     input.cost_structure || 'current';
 
-  if (costStructure === 'progressive') {
-    fail(
-      'break_even_graph_overrides.cost_structure'
-    );
-  }
-
   if (
     options === null ||
     typeof options !== 'object' ||
@@ -469,7 +463,10 @@ function computeBreakEvenGraph(
   const allowedOptions = new Set([
     'min_active_students',
     'max_active_students',
-    'point_count'
+    'point_count',
+    'progressive_month',
+    'progressive_horizon_months',
+    'progressive_cost_plan'
   ]);
 
   for (const key of Object.keys(options)) {
@@ -478,6 +475,76 @@ function computeBreakEvenGraph(
         'break_even_graph_options.' + key
       );
     }
+  }
+
+  const hasProgressiveMonth =
+    options.progressive_month !== undefined;
+
+  const hasProgressiveHorizon =
+    options.progressive_horizon_months !== undefined;
+
+  const hasProgressivePlan =
+    options.progressive_cost_plan !== undefined;
+
+  let progressiveMonth = null;
+  let progressiveHorizonMonths = null;
+
+  if (costStructure === 'progressive') {
+    if (!hasProgressiveMonth) {
+      fail(
+        'break_even_graph_options.progressive_month'
+      );
+    }
+
+    if (!hasProgressiveHorizon) {
+      fail(
+        'break_even_graph_options.progressive_horizon_months'
+      );
+    }
+
+    if (!hasProgressivePlan) {
+      fail(
+        'break_even_graph_options.progressive_cost_plan'
+      );
+    }
+
+    positiveInteger(
+      options.progressive_month,
+      'break_even_graph_options.progressive_month'
+    );
+
+    progressiveMonth =
+      options.progressive_month;
+
+    if (
+      ![12, 24, 36].includes(
+        options.progressive_horizon_months
+      )
+    ) {
+      fail(
+        'break_even_graph_options.progressive_horizon_months'
+      );
+    }
+
+    progressiveHorizonMonths =
+      options.progressive_horizon_months;
+
+    if (
+      progressiveMonth >
+      progressiveHorizonMonths
+    ) {
+      fail(
+        'break_even_graph_options.progressive_month'
+      );
+    }
+  } else if (
+    hasProgressiveMonth ||
+    hasProgressiveHorizon ||
+    hasProgressivePlan
+  ) {
+    fail(
+      'break_even_graph_options.progressive_requires_progressive_cost_structure'
+    );
   }
 
   const minActiveStudents =
@@ -537,12 +604,47 @@ function computeBreakEvenGraph(
       .school_to_home_conversion_rate = 0;
   }
 
-  const modeledOperatingCosts =
-    costStructure === 'expanded'
-      ? simulationModel.operating_costs
-          .expanded_fixed_monthly
-      : simulationModel.operating_costs
-          .current_fixed_monthly;
+  let progressiveCostContext = null;
+
+  let modeledOperatingCosts;
+
+  if (costStructure === 'progressive') {
+    const progressiveCosts =
+      computeProgressiveOperatingCosts(
+        simulationModel,
+        options.progressive_cost_plan,
+        progressiveHorizonMonths
+      );
+
+    const selectedMonth =
+      progressiveCosts.months[
+        progressiveMonth - 1
+      ];
+
+    progressiveCostContext = {
+      month: selectedMonth.month,
+      base_structure:
+        progressiveCosts.base_structure,
+      base_monthly:
+        selectedMonth.base_monthly,
+      event_delta:
+        selectedMonth.event_delta,
+      total_monthly:
+        selectedMonth.total_monthly,
+      active_event_ids:
+        [...selectedMonth.active_event_ids]
+    };
+
+    modeledOperatingCosts =
+      selectedMonth.total_monthly;
+  } else {
+    modeledOperatingCosts =
+      costStructure === 'expanded'
+        ? simulationModel.operating_costs
+            .expanded_fixed_monthly
+        : simulationModel.operating_costs
+            .current_fixed_monthly;
+  }
 
   const exactBreakEvenStudents =
     findBreakEvenStudents(
@@ -714,7 +816,15 @@ function computeBreakEvenGraph(
       monthly_break_even_is_cumulative_recovery:
         false,
       capex_included_in_operating_break_even:
-        false
+        false,
+      ...(
+        costStructure === 'progressive'
+          ? {
+              progressive_break_even_is_month_specific:
+                true
+            }
+          : {}
+      )
     },
 
     inputs: {
@@ -724,12 +834,31 @@ function computeBreakEvenGraph(
         simulationModel.home
           .school_to_home_conversion_rate,
       cost_structure: costStructure,
+      ...(
+        costStructure === 'progressive'
+          ? {
+              progressive_month:
+                progressiveMonth,
+              progressive_horizon_months:
+                progressiveHorizonMonths
+            }
+          : {}
+      ),
       min_active_students:
         minActiveStudents,
       max_active_students:
         maxActiveStudents,
       point_count: points.length
     },
+
+    ...(
+      costStructure === 'progressive'
+        ? {
+            progressive_cost_context:
+              progressiveCostContext
+          }
+        : {}
+    ),
 
     break_even: breakEven,
     points
