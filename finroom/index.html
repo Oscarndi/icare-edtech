@@ -252,6 +252,44 @@
             Explore explicit assumptions without changing the official
             financial model. Calculations remain server-authoritative.
           </p>
+
+          <div class="finroom-usage-guide"
+               aria-labelledby="finroom-main-usage-guide-title">
+            <h3 id="finroom-main-usage-guide-title">
+              How to use FinRoom
+            </h3>
+
+            <div class="finroom-usage-guide-grid">
+              <article>
+                <strong>1. Set the scenario.</strong>
+                Choose the learner count, device arrangement, home continuity,
+                operating-cost structure and time horizon you want to examine.
+                These inputs create an ephemeral simulation and never rewrite
+                the protected reference model.
+              </article>
+
+              <article>
+                <strong>2. Read the current snapshot.</strong>
+                Use the snapshot to understand the financial position for one
+                explicit learner count under the selected assumptions.
+              </article>
+
+              <article>
+                <strong>3. Explore the trajectory.</strong>
+                Use the horizon and growth controls to examine how the same
+                scenario evolves month by month. A trajectory is a modeled
+                scenario, not a forecast or promise of future performance.
+              </article>
+
+              <article>
+                <strong>4. Compare or test break-even.</strong>
+                Sensitivity compares an explicit variant with the reference
+                configuration. The break-even graph answers a different
+                question: how many active learners are required for monthly
+                contribution to cover modeled operating costs.
+              </article>
+            </div>
+          </div>
         </div>
 
         <div id="finroom-simulator-controls"
@@ -271,6 +309,11 @@
                          min="1"
                          step="1"
                          required>
+                  <span class="finroom-field-help">
+                    Number of active learners used for the current simulation.
+                    Changing this value changes the modeled scale of the
+                    scenario; it does not change the official reference model.
+                  </span>
                 </label>
 
                 <label>
@@ -284,6 +327,12 @@
                       ICARE-supplied devices
                     </option>
                   </select>
+                  <span class="finroom-field-help">
+                    School-owned devices model a school using its own learner
+                    devices. ICARE-supplied devices model the alternative in
+                    which ICARE provides the learner-device arrangement defined
+                    by the protected financial model.
+                  </span>
                 </label>
 
                 <label class="finroom-checkbox-control">
@@ -292,6 +341,11 @@
                          type="checkbox"
                          checked>
                   <span>Home continuity enabled</span>
+                  <span class="finroom-field-help">
+                    Include the modeled home channel in this scenario.
+                    Disable it when you want to evaluate the school channel
+                    without modeled home conversion.
+                  </span>
                 </label>
 
                 <label>
@@ -317,6 +371,16 @@
                     <option value="expanded">Expanded</option>
                     <option value="progressive">Progressive</option>
                   </select>
+
+                  <span class="finroom-field-help">
+                    <strong>Current</strong> uses the present modeled operating
+                    cost structure.
+                    <strong>Expanded</strong> uses the larger target operating
+                    structure as a fixed monthly structure.
+                    <strong>Progressive</strong> starts from Current or Expanded
+                    and lets operating costs change over time through explicit
+                    cost or hiring events.
+                  </span>
                 </label>
 
                 <label>
@@ -327,6 +391,11 @@
                     <option value="24">24 months</option>
                     <option value="36">36 months</option>
                   </select>
+                  <span class="finroom-field-help">
+                    Length of the monthly trajectory. In Progressive mode this
+                    also defines the latest month that can be selected for
+                    evaluation or used as an event start month.
+                  </span>
                 </label>
 
                 <div id="sim-progressive-plan"
@@ -336,9 +405,12 @@
                     <div>
                       <strong>Progressive operating-cost plan</strong>
                       <span class="finroom-field-help">
-                        Explicit scenario assumptions only. FinRoom sends this
-                        plan to the protected server; the browser does not
-                        calculate operating costs or break-even.
+                        Use Progressive when operating costs are expected to
+                        change over time instead of remaining fixed. Start from
+                        Current or Expanded, then add explicit cost or hiring
+                        events. FinRoom sends the plan to the protected server;
+                        the browser does not calculate operating costs or
+                        break-even.
                       </span>
                     </div>
                   </div>
@@ -350,6 +422,11 @@
                         <option value="current">Current</option>
                         <option value="expanded">Expanded</option>
                       </select>
+                      <span class="finroom-field-help">
+                        Starting operating-cost structure before Progressive
+                        events are applied. Events add to or modify this base
+                        from their start month onward.
+                      </span>
                     </label>
 
                     <label>
@@ -361,10 +438,49 @@
                              step="1"
                              value="1">
                       <span class="finroom-field-help">
-                        The graph shows the exact server-calculated operating
-                        break-even for this selected month.
+                        Select the month you want to inspect. FinRoom resolves
+                        which Progressive events are active in that month,
+                        calculates the applicable operating cost on the server,
+                        and returns the exact monthly operating break-even for
+                        that month.
                       </span>
                     </label>
+                  </div>
+
+                  <div class="finroom-progressive-usage">
+                    <h4>How Progressive events work</h4>
+                    <ul>
+                      <li>
+                        <strong>Start month.</strong>
+                        An event becomes active in its start month and remains
+                        active in later months of the selected horizon.
+                      </li>
+                      <li>
+                        <strong>Cost change.</strong>
+                        Adds the entered monthly amount to operating costs from
+                        the selected start month onward. A negative value may
+                        represent an explicit modeled cost reduction.
+                      </li>
+                      <li>
+                        <strong>Hiring.</strong>
+                        Defines a positive headcount increase and a monthly
+                        unit cost. The protected server resolves the resulting
+                        monthly hiring cost.
+                      </li>
+                      <li>
+                        <strong>Evidence status.</strong>
+                        Achieved, Current assumption, To validate and Deferred
+                        describe the evidence or validation state of the event.
+                        They do not automatically include or exclude the event:
+                        every event in the submitted Progressive plan is
+                        simulated from its start month.
+                      </li>
+                      <li>
+                        <strong>Event ID.</strong>
+                        A short unique name used to identify the event in the
+                        resolved server context and active-event list.
+                      </li>
+                    </ul>
                   </div>
 
                   <div class="finroom-progressive-events-head">
@@ -400,6 +516,15 @@
                       Manual monthly path
                     </option>
                   </select>
+                  <span id="finroom-growth-mode-help"
+                        class="finroom-field-help">
+                    <strong>Constant learners</strong> keeps the learner count
+                    unchanged across the trajectory.
+                    <strong>Modeled growth rate</strong> applies the explicit
+                    monthly percentage you provide.
+                    <strong>Manual monthly path</strong> lets you provide the
+                    learner count for each month directly.
+                  </span>
                 </label>
 
                 <label id="sim-growth-rate-group" hidden>
@@ -534,7 +659,10 @@
             Explore the modeled monthly operating break-even for the current
             laboratory assumptions. Financial values and the exact threshold
             are calculated by the protected server; the browser only presents
-            the returned result.
+            the returned result. With Current or Expanded, the selected cost
+            structure is fixed for the calculation. With Progressive, the
+            result is specific to the selected evaluation month and the
+            Progressive events active in that month.
           </p>
 
           <div class="finroom-break-even-guide"

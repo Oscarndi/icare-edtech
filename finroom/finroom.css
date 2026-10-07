@@ -1510,3 +1510,69 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ============================================================
+   ICARE FINROOM R4F-J1 — contextual English usage guidance
+   Presentation only. No financial semantics are computed here.
+   ============================================================ */
+
+.finroom-usage-guide {
+  margin: 1rem 0 1.25rem;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.9rem;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.finroom-usage-guide h3,
+.finroom-progressive-usage h4 {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+}
+
+.finroom-usage-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.finroom-usage-guide-grid article {
+  margin: 0;
+  padding: 0.8rem;
+  border-radius: 0.7rem;
+  background: rgba(255, 255, 255, 0.025);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.finroom-usage-guide-grid article strong {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.finroom-progressive-usage {
+  margin: 0.9rem 0 1rem;
+  padding: 0.9rem 1rem;
+  border-left: 3px solid currentColor;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.finroom-progressive-usage ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.finroom-progressive-usage li {
+  margin: 0.45rem 0;
+  line-height: 1.5;
+}
+
+.finroom-field-help strong {
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .finroom-usage-guide-grid {
+    grid-template-columns: 1fr;
+  }
+}
