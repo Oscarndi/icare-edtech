@@ -2652,7 +2652,1081 @@ function applyRevisionToSimulationOverrides(
   };
 }
 
+
+/* R5 CONTRACT FOUNDATION — BEGIN
+ *
+ * Contract-only foundation for Pricing Rationale / Unit Economics.
+ *
+ * IMPORTANT:
+ * - no real/private ICARE monetary values are defined here;
+ * - no pricing arithmetic is implemented here;
+ * - no legacy R4F calculation semantics are changed here.
+ */
+
+const R5_ASSUMPTION_STATUS = new Set([
+  'achieved',
+  'current_assumption',
+  'to_validate',
+  'deferred'
+]);
+
+const R5_CONFIDENCE = new Set([
+  'low',
+  'medium',
+  'high'
+]);
+
+const R5_SOURCE_TYPE = new Set([
+  'internal_estimate',
+  'supplier_quote',
+  'supplier_catalog',
+  'invoice',
+  'internal_purchase_record',
+  'fabrication_estimate',
+  'fabrication_actual',
+  'payroll_policy',
+  'statutory_source',
+  'market_reference',
+  'competitor_reference',
+  'customer_interview',
+  'pilot_observation',
+  'contract',
+  'management_target',
+  'logistics_quote',
+  'customs_or_statutory_source',
+  'installation_estimate',
+  'installation_actual',
+  'technical_fixture'
+]);
+
+const R5_COST_CLASS = new Set([
+  'manufacturing_cost',
+  'installation_cost',
+  'hardware_capex',
+  'teacher_variable_cost',
+  'fixed_operating_cost',
+  'maintenance_cost',
+  'support_cost',
+  'infrastructure_cost',
+  'distribution_cost',
+  'customer_acquisition_cost',
+  'tax_cost',
+  'compliance_cost',
+  'risk_reserve',
+  'financing_cost',
+  'amortization'
+]);
+
+const R5_OFFER_ID = new Set([
+  'school_b2b2c',
+  'home_saas',
+  'tablet_rental',
+  'tablet_provision',
+  'box',
+  'support_maintenance'
+]);
+
+const R5_PRICING_DECISION_STATUS =
+  new Set([
+    'proposed',
+    'approved',
+    'rejected',
+    'superseded'
+  ]);
+
+const R5_TECHNICAL_COST_ORIGIN =
+  new Set([
+    'purchased_component',
+    'fabricated_component',
+    'fabricated_submodule',
+    'fabricated_module',
+    'assembly',
+    'integration',
+    'provisioning',
+    'shipping',
+    'customs',
+    'installation',
+    'deployment',
+    'replacement',
+    'repair',
+    'other_declared'
+  ]);
+
+const R5_PROCUREMENT_OR_FABRICATION_MODE =
+  new Set([
+    'purchased',
+    'fabricated',
+    'assembled',
+    'mixed',
+    'externally_provided',
+    'unknown_to_validate'
+  ]);
+
+const R5_LEGACY_RECONCILIATION_CLASS =
+  new Set([
+    'not_in_legacy',
+    'fully_in_legacy',
+    'partially_in_legacy',
+    'legacy_represents_different_scope',
+    'unknown_requires_validation'
+  ]);
+
+const R5_LEGACY_RECONCILIATION_ACTION =
+  new Set([
+    'include_new',
+    'exclude_duplicate',
+    'include_incremental_only',
+    'retain_legacy_only',
+    'replace_after_validated_migration',
+    'manual_review_required'
+  ]);
+
+const R5_ALLOCATION_BASIS =
+  new Set([
+    'per_learner',
+    'per_class',
+    'per_device',
+    'per_school',
+    'per_month',
+    'per_year',
+    'usage_based',
+    'equal_share',
+    'management_policy',
+    'direct_attribution',
+    'custom_documented'
+  ]);
+
+const R5_TECHNICAL_COST_COMPLETENESS =
+  new Set([
+    'complete_for_declared_scope',
+    'partial_known_gaps',
+    'preliminary_estimate',
+    'unavailable'
+  ]);
+
+const R5_ECONOMIC_COST_COMPLETENESS =
+  new Set([
+    'complete_for_declared_scope',
+    'partial_known_gaps',
+    'incomplete_required_costs',
+    'unavailable'
+  ]);
+
+const R5_CONTRACT_ENUMS = Object.freeze({
+  assumption_status:
+    Object.freeze([...R5_ASSUMPTION_STATUS]),
+  confidence:
+    Object.freeze([...R5_CONFIDENCE]),
+  source_type:
+    Object.freeze([...R5_SOURCE_TYPE]),
+  cost_class:
+    Object.freeze([...R5_COST_CLASS]),
+  offer_id:
+    Object.freeze([...R5_OFFER_ID]),
+  pricing_decision_status:
+    Object.freeze([...R5_PRICING_DECISION_STATUS]),
+  technical_cost_origin:
+    Object.freeze([...R5_TECHNICAL_COST_ORIGIN]),
+  procurement_or_fabrication_mode:
+    Object.freeze([
+      ...R5_PROCUREMENT_OR_FABRICATION_MODE
+    ]),
+  legacy_reconciliation_class:
+    Object.freeze([
+      ...R5_LEGACY_RECONCILIATION_CLASS
+    ]),
+  legacy_reconciliation_action:
+    Object.freeze([
+      ...R5_LEGACY_RECONCILIATION_ACTION
+    ]),
+  allocation_basis:
+    Object.freeze([...R5_ALLOCATION_BASIS]),
+  technical_cost_completeness:
+    Object.freeze([
+      ...R5_TECHNICAL_COST_COMPLETENESS
+    ]),
+  economic_cost_completeness:
+    Object.freeze([
+      ...R5_ECONOMIC_COST_COMPLETENESS
+    ])
+});
+
+function validatePlainObject(
+  value,
+  path
+) {
+  if (
+    value === null ||
+    typeof value !== 'object' ||
+    Array.isArray(value)
+  ) {
+    fail(path);
+  }
+
+  return value;
+}
+
+function validateArray(
+  value,
+  path
+) {
+  if (!Array.isArray(value)) {
+    fail(path);
+  }
+
+  return value;
+}
+
+function validateOptionalString(
+  value,
+  path,
+  maxLength = 1000
+) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== 'string') {
+    fail(path);
+  }
+
+  if (value.length > maxLength) {
+    fail(path);
+  }
+
+  return value;
+}
+
+function validateBoolean(
+  value,
+  path
+) {
+  if (typeof value !== 'boolean') {
+    fail(path);
+  }
+
+  return value;
+}
+
+function validateEnumValue(
+  value,
+  allowed,
+  path
+) {
+  if (!allowed.has(value)) {
+    fail(path);
+  }
+
+  return value;
+}
+
+function validateR5AssumptionStatus(
+  value,
+  path = 'assumption_status'
+) {
+  return validateEnumValue(
+    value,
+    R5_ASSUMPTION_STATUS,
+    path
+  );
+}
+
+function validateR5Confidence(
+  value,
+  path = 'confidence'
+) {
+  return validateEnumValue(
+    value,
+    R5_CONFIDENCE,
+    path
+  );
+}
+
+function validateR5SourceType(
+  value,
+  path = 'source_type'
+) {
+  return validateEnumValue(
+    value,
+    R5_SOURCE_TYPE,
+    path
+  );
+}
+
+function validateR5CostClass(
+  value,
+  path = 'cost_class'
+) {
+  return validateEnumValue(
+    value,
+    R5_COST_CLASS,
+    path
+  );
+}
+
+function validateR5OfferId(
+  value,
+  path = 'offer_id'
+) {
+  return validateEnumValue(
+    value,
+    R5_OFFER_ID,
+    path
+  );
+}
+
+function validateR5PricingDecisionStatus(
+  value,
+  path = 'pricing_decision_status'
+) {
+  return validateEnumValue(
+    value,
+    R5_PRICING_DECISION_STATUS,
+    path
+  );
+}
+
+function validateR5TechnicalCostOrigin(
+  value,
+  path = 'cost_origin'
+) {
+  return validateEnumValue(
+    value,
+    R5_TECHNICAL_COST_ORIGIN,
+    path
+  );
+}
+
+function validateR5ProcurementMode(
+  value,
+  path =
+    'procurement_or_fabrication_mode'
+) {
+  return validateEnumValue(
+    value,
+    R5_PROCUREMENT_OR_FABRICATION_MODE,
+    path
+  );
+}
+
+function validateR5LegacyReconciliationClass(
+  value,
+  path = 'classification'
+) {
+  return validateEnumValue(
+    value,
+    R5_LEGACY_RECONCILIATION_CLASS,
+    path
+  );
+}
+
+function validateR5LegacyReconciliationAction(
+  value,
+  path = 'reconciliation_action'
+) {
+  return validateEnumValue(
+    value,
+    R5_LEGACY_RECONCILIATION_ACTION,
+    path
+  );
+}
+
+function validateR5AllocationBasis(
+  value,
+  path = 'allocation_basis'
+) {
+  return validateEnumValue(
+    value,
+    R5_ALLOCATION_BASIS,
+    path
+  );
+}
+
+function validateR5TechnicalCostCompleteness(
+  value,
+  path = 'technical_cost_completeness'
+) {
+  return validateEnumValue(
+    value,
+    R5_TECHNICAL_COST_COMPLETENESS,
+    path
+  );
+}
+
+function validateR5EconomicCostCompleteness(
+  value,
+  path = 'economic_cost_completeness'
+) {
+  return validateEnumValue(
+    value,
+    R5_ECONOMIC_COST_COMPLETENESS,
+    path
+  );
+}
+
+function validateCanonicalMonetaryValue(
+  raw,
+  path = 'monetary_value'
+) {
+  validatePlainObject(raw, path);
+
+  finiteNumber(
+    raw.value,
+    path + '.value'
+  );
+
+  nonEmptyString(
+    raw.currency,
+    path + '.currency',
+    16
+  );
+
+  nonEmptyString(
+    raw.unit,
+    path + '.unit'
+  );
+
+  nonEmptyString(
+    raw.scope,
+    path + '.scope'
+  );
+
+  nonEmptyString(
+    raw.provenance,
+    path + '.provenance',
+    500
+  );
+
+  validateR5SourceType(
+    raw.source_type,
+    path + '.source_type'
+  );
+
+  validateR5AssumptionStatus(
+    raw.assumption_status,
+    path + '.assumption_status'
+  );
+
+  nonEmptyString(
+    raw.effective_date,
+    path + '.effective_date',
+    64
+  );
+
+  validateR5Confidence(
+    raw.confidence,
+    path + '.confidence'
+  );
+
+  validateArray(
+    raw.evidence_refs,
+    path + '.evidence_refs'
+  );
+
+  validateOptionalString(
+    raw.notes,
+    path + '.notes'
+  );
+
+  return raw;
+}
+
+function validateTechnicalComponent(
+  raw,
+  path = 'technical_component'
+) {
+  validatePlainObject(raw, path);
+
+  nonEmptyString(
+    raw.component_id,
+    path + '.component_id'
+  );
+
+  nonEmptyString(
+    raw.name,
+    path + '.name'
+  );
+
+  finiteNumber(
+    raw.quantity,
+    path + '.quantity',
+    {
+      min: Number.EPSILON
+    }
+  );
+
+  nonEmptyString(
+    raw.unit_of_measure,
+    path + '.unit_of_measure'
+  );
+
+  validateR5ProcurementMode(
+    raw.procurement_or_fabrication_mode,
+    path +
+      '.procurement_or_fabrication_mode'
+  );
+
+  nonEmptyString(
+    raw.technical_reference,
+    path + '.technical_reference',
+    500
+  );
+
+  nonEmptyString(
+    raw.lifecycle_class,
+    path + '.lifecycle_class'
+  );
+
+  validateArray(
+    raw.evidence_refs,
+    path + '.evidence_refs'
+  );
+
+  validateOptionalString(
+    raw.notes,
+    path + '.notes'
+  );
+
+  return raw;
+}
+
+function validateTechnicalSubmodule(
+  raw,
+  path = 'technical_submodule'
+) {
+  validatePlainObject(raw, path);
+
+  nonEmptyString(
+    raw.submodule_id,
+    path + '.submodule_id'
+  );
+
+  nonEmptyString(
+    raw.name,
+    path + '.name'
+  );
+
+  finiteNumber(
+    raw.quantity,
+    path + '.quantity',
+    {
+      min: Number.EPSILON
+    }
+  );
+
+  validateArray(
+    raw.components,
+    path + '.components'
+  ).forEach(
+    (component, index) =>
+      validateTechnicalComponent(
+        component,
+        path + '.components[' + index + ']'
+      )
+  );
+
+  validateArray(
+    raw.submodule_cost_items,
+    path + '.submodule_cost_items'
+  );
+
+  validateArray(
+    raw.evidence_refs,
+    path + '.evidence_refs'
+  );
+
+  validateOptionalString(
+    raw.notes,
+    path + '.notes'
+  );
+
+  return raw;
+}
+
+function validateTechnicalModule(
+  raw,
+  path = 'technical_module'
+) {
+  validatePlainObject(raw, path);
+
+  nonEmptyString(
+    raw.module_id,
+    path + '.module_id'
+  );
+
+  nonEmptyString(
+    raw.name,
+    path + '.name'
+  );
+
+  finiteNumber(
+    raw.quantity,
+    path + '.quantity',
+    {
+      min: Number.EPSILON
+    }
+  );
+
+  validateArray(
+    raw.submodules,
+    path + '.submodules'
+  ).forEach(
+    (submodule, index) =>
+      validateTechnicalSubmodule(
+        submodule,
+        path + '.submodules[' + index + ']'
+      )
+  );
+
+  validateArray(
+    raw.components,
+    path + '.components'
+  ).forEach(
+    (component, index) =>
+      validateTechnicalComponent(
+        component,
+        path + '.components[' + index + ']'
+      )
+  );
+
+  validateArray(
+    raw.module_cost_items,
+    path + '.module_cost_items'
+  );
+
+  validateArray(
+    raw.evidence_refs,
+    path + '.evidence_refs'
+  );
+
+  validateOptionalString(
+    raw.notes,
+    path + '.notes'
+  );
+
+  return raw;
+}
+
+function validateTechnicalProductConfiguration(
+  raw,
+  path = 'technical_product_configuration'
+) {
+  validatePlainObject(raw, path);
+
+  nonEmptyString(
+    raw.configuration_id,
+    path + '.configuration_id'
+  );
+
+  nonEmptyString(
+    raw.product_id,
+    path + '.product_id'
+  );
+
+  nonEmptyString(
+    raw.product_version,
+    path + '.product_version'
+  );
+
+  nonEmptyString(
+    raw.configuration_name,
+    path + '.configuration_name'
+  );
+
+  /*
+   * Technical maturity remains a distinct axis.
+   * B1 validates presence only; it does not merge
+   * TechRoom maturity with FinRoom assumption status.
+   */
+  nonEmptyString(
+    raw.maturity_status,
+    path + '.maturity_status'
+  );
+
+  nonEmptyString(
+    raw.effective_date,
+    path + '.effective_date',
+    64
+  );
+
+  validateArray(
+    raw.modules,
+    path + '.modules'
+  ).forEach(
+    (moduleItem, index) =>
+      validateTechnicalModule(
+        moduleItem,
+        path + '.modules[' + index + ']'
+      )
+  );
+
+  validateArray(
+    raw.evidence_refs,
+    path + '.evidence_refs'
+  );
+
+  validateOptionalString(
+    raw.notes,
+    path + '.notes'
+  );
+
+  return raw;
+}
+
+function validateTechnicalCostItem(
+  raw,
+  path = 'technical_cost_item'
+) {
+  validatePlainObject(raw, path);
+
+  nonEmptyString(
+    raw.cost_item_id,
+    path + '.cost_item_id'
+  );
+
+  nonEmptyString(
+    raw.technical_ref,
+    path + '.technical_ref'
+  );
+
+  nonEmptyString(
+    raw.configuration_id,
+    path + '.configuration_id'
+  );
+
+  validateR5TechnicalCostOrigin(
+    raw.cost_origin,
+    path + '.cost_origin'
+  );
+
+  validateR5CostClass(
+    raw.cost_class,
+    path + '.cost_class'
+  );
+
+  finiteNumber(
+    raw.quantity,
+    path + '.quantity'
+  );
+
+  validateCanonicalMonetaryValue(
+    raw.unit_cost,
+    path + '.unit_cost'
+  );
+
+  validateR5ProcurementMode(
+    raw.procurement_or_fabrication_mode,
+    path +
+      '.procurement_or_fabrication_mode'
+  );
+
+  validateR5SourceType(
+    raw.source_type,
+    path + '.source_type'
+  );
+
+  nonEmptyString(
+    raw.provenance,
+    path + '.provenance',
+    500
+  );
+
+  nonEmptyString(
+    raw.effective_date,
+    path + '.effective_date',
+    64
+  );
+
+  validateR5AssumptionStatus(
+    raw.assumption_status,
+    path + '.assumption_status'
+  );
+
+  validateR5Confidence(
+    raw.confidence,
+    path + '.confidence'
+  );
+
+  validateArray(
+    raw.evidence_refs,
+    path + '.evidence_refs'
+  );
+
+  validateBoolean(
+    raw.included_in_legacy_cost,
+    path + '.included_in_legacy_cost'
+  );
+
+  for (
+    const [key, maxLength] of [
+      ['module_id', 100],
+      ['submodule_id', 100],
+      ['component_id', 100],
+      ['supplier_or_source_ref', 500],
+      ['legacy_cost_ref', 500]
+    ]
+  ) {
+    if (raw[key] !== undefined) {
+      nonEmptyString(
+        raw[key],
+        path + '.' + key,
+        maxLength
+      );
+    }
+  }
+
+  if (raw.lifecycle_months !== undefined) {
+    finiteNumber(
+      raw.lifecycle_months,
+      path + '.lifecycle_months'
+    );
+  }
+
+  if (raw.replacement_rate !== undefined) {
+    finiteNumber(
+      raw.replacement_rate,
+      path + '.replacement_rate',
+      { min: 0, max: 1 }
+    );
+  }
+
+  validateOptionalString(
+    raw.notes,
+    path + '.notes'
+  );
+
+  return raw;
+}
+
+function validateTechnicalCostBasisHandoff(
+  raw,
+  path = 'technical_cost_basis_handoff'
+) {
+  validatePlainObject(raw, path);
+
+  for (
+    const key of [
+      'handoff_id',
+      'configuration_id',
+      'configuration_version',
+      'technical_cost_basis_id'
+    ]
+  ) {
+    nonEmptyString(
+      raw[key],
+      path + '.' + key
+    );
+  }
+
+  nonEmptyString(
+    raw.currency,
+    path + '.currency',
+    16
+  );
+
+  nonEmptyString(
+    raw.effective_date,
+    path + '.effective_date',
+    64
+  );
+
+  finiteNumber(
+    raw.total_direct_cost,
+    path + '.total_direct_cost'
+  );
+
+  finiteNumber(
+    raw.landed_cost,
+    path + '.landed_cost'
+  );
+
+  finiteNumber(
+    raw.deployed_cost,
+    path + '.deployed_cost'
+  );
+
+  if (
+    raw.lifecycle_assumptions === null ||
+    typeof raw.lifecycle_assumptions !==
+      'object'
+  ) {
+    fail(
+      path + '.lifecycle_assumptions'
+    );
+  }
+
+  validateArray(
+    raw.unresolved_cost_items,
+    path + '.unresolved_cost_items'
+  );
+
+  validateArray(
+    raw.evidence_refs,
+    path + '.evidence_refs'
+  );
+
+  nonEmptyString(
+    raw.maturity_status,
+    path + '.maturity_status'
+  );
+
+  nonEmptyString(
+    raw.disclosure_class,
+    path + '.disclosure_class'
+  );
+
+  return raw;
+}
+
+function validateLegacyCostReconciliation(
+  raw,
+  path = 'legacy_cost_reconciliation'
+) {
+  validatePlainObject(raw, path);
+
+  nonEmptyString(
+    raw.reconciliation_id,
+    path + '.reconciliation_id'
+  );
+
+  nonEmptyString(
+    raw.model_version,
+    path + '.model_version'
+  );
+
+  nonEmptyString(
+    raw.technical_cost_ref,
+    path + '.technical_cost_ref'
+  );
+
+  nonEmptyString(
+    raw.legacy_cost_ref,
+    path + '.legacy_cost_ref'
+  );
+
+  validateR5LegacyReconciliationClass(
+    raw.classification,
+    path + '.classification'
+  );
+
+  validateR5LegacyReconciliationAction(
+    raw.reconciliation_action,
+    path + '.reconciliation_action'
+  );
+
+  if (raw.overlap_amount !== undefined) {
+    finiteNumber(
+      raw.overlap_amount,
+      path + '.overlap_amount'
+    );
+  }
+
+  validateOptionalString(
+    raw.notes,
+    path + '.notes'
+  );
+
+  return raw;
+}
+
+function validateCostAllocation(
+  raw,
+  path = 'cost_allocation'
+) {
+  validatePlainObject(raw, path);
+
+  nonEmptyString(
+    raw.allocation_id,
+    path + '.allocation_id'
+  );
+
+  nonEmptyString(
+    raw.source_cost_ref,
+    path + '.source_cost_ref'
+  );
+
+  validateR5OfferId(
+    raw.offer_id,
+    path + '.offer_id'
+  );
+
+  nonEmptyString(
+    raw.segment_id,
+    path + '.segment_id'
+  );
+
+  validateR5AllocationBasis(
+    raw.allocation_basis,
+    path + '.allocation_basis'
+  );
+
+  nonEmptyString(
+    raw.allocation_driver,
+    path + '.allocation_driver'
+  );
+
+  nonEmptyString(
+    raw.allocation_period,
+    path + '.allocation_period'
+  );
+
+  finiteNumber(
+    raw.allocated_value,
+    path + '.allocated_value'
+  );
+
+  nonEmptyString(
+    raw.currency,
+    path + '.currency',
+    16
+  );
+
+  if (
+    raw.assumptions === null ||
+    typeof raw.assumptions !== 'object'
+  ) {
+    fail(path + '.assumptions');
+  }
+
+  validateArray(
+    raw.evidence_refs,
+    path + '.evidence_refs'
+  );
+
+  nonEmptyString(
+    raw.status,
+    path + '.status'
+  );
+
+  return raw;
+}
+
+/* R5 CONTRACT FOUNDATION — END */
+
 module.exports = {
+  R5_CONTRACT_ENUMS,
+  validateCanonicalMonetaryValue,
+  validateR5AssumptionStatus,
+  validateR5Confidence,
+  validateR5SourceType,
+  validateR5CostClass,
+  validateR5OfferId,
+  validateR5PricingDecisionStatus,
+  validateR5TechnicalCostOrigin,
+  validateR5ProcurementMode,
+  validateR5LegacyReconciliationClass,
+  validateR5LegacyReconciliationAction,
+  validateR5AllocationBasis,
+  validateR5TechnicalCostCompleteness,
+  validateR5EconomicCostCompleteness,
+  validateTechnicalComponent,
+  validateTechnicalSubmodule,
+  validateTechnicalModule,
+  validateTechnicalProductConfiguration,
+  validateTechnicalCostItem,
+  validateTechnicalCostBasisHandoff,
+  validateLegacyCostReconciliation,
+  validateCostAllocation,
   validateModel,
   loadModelFromEnvironment,
   computeScenario,
