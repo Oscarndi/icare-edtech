@@ -6410,6 +6410,30 @@ function evaluateTargetPolicy(
       target_value:
         raw.strategic_target.value,
 
+      pricing_policy:
+        raw.strategic_target.pricing_policy,
+
+      offer_id:
+        raw.offer_id,
+
+      segment_id:
+        raw.segment_id,
+
+      scenario_id:
+        raw.scenario_id,
+
+      currency:
+        raw.strategic_target.currency,
+
+      unit:
+        raw.strategic_target.unit,
+
+      scope_ref:
+        raw.strategic_target.scope_ref,
+
+      effective_date:
+        raw.strategic_target.effective_date,
+
       floor_value:
         raw.floor_context.value,
 
@@ -6474,6 +6498,30 @@ function evaluateTargetPolicy(
       target_value:
         raw.strategic_target.value,
 
+      pricing_policy:
+        raw.strategic_target.pricing_policy,
+
+      offer_id:
+        raw.offer_id,
+
+      segment_id:
+        raw.segment_id,
+
+      scenario_id:
+        raw.scenario_id,
+
+      currency:
+        raw.strategic_target.currency,
+
+      unit:
+        raw.strategic_target.unit,
+
+      scope_ref:
+        raw.strategic_target.scope_ref,
+
+      effective_date:
+        raw.strategic_target.effective_date,
+
       floor_value:
         raw.floor_context.value,
 
@@ -6530,6 +6578,30 @@ function evaluateTargetPolicy(
 
     target_value:
       raw.strategic_target.value,
+
+    pricing_policy:
+      raw.strategic_target.pricing_policy,
+
+    offer_id:
+      raw.offer_id,
+
+    segment_id:
+      raw.segment_id,
+
+    scenario_id:
+      raw.scenario_id,
+
+    currency:
+      raw.strategic_target.currency,
+
+    unit:
+      raw.strategic_target.unit,
+
+    scope_ref:
+      raw.strategic_target.scope_ref,
+
+    effective_date:
+      raw.strategic_target.effective_date,
 
     floor_value:
       raw.floor_context.value,
@@ -7032,10 +7104,12 @@ function evaluateAffordabilityEvidence(
  * or perform implicit monetary/dimensional equivalence.
  */
 
-const R5_B3_5_STATUS_PRECEDENCE = Object.freeze([
-  'conflicting_evidence',
-  'manual_review_required',
+const R5_B3_5_RULE_PRECEDENCE = Object.freeze([
+  'upstream_conflicting_evidence',
+  'identity_or_dimension_incompatibility',
   'incomplete_cost_basis',
+  'upstream_manual_review',
+  'contradictory_final_bounds',
   'no_affordability_evidence',
   'below_economic_floor',
   'above_affordability_ceiling',
@@ -7068,8 +7142,8 @@ const R5_B3_5_ENUMS = Object.freeze({
   support_type_mapping:
     R5_B3_5_SUPPORT_TYPE_MAP,
 
-  status_precedence:
-    R5_B3_5_STATUS_PRECEDENCE
+  rule_precedence:
+    R5_B3_5_RULE_PRECEDENCE
 });
 
 function validateFinalEconomicCorridorStatus(
@@ -7281,6 +7355,51 @@ function validateB35TargetPolicyResult(
   validateB35Refs(
     raw.market_context_refs,
     path + '.market_context_refs'
+  );
+
+  validateR5PricingPolicy(
+    raw.pricing_policy,
+    path + '.pricing_policy'
+  );
+
+  validateR5OfferId(
+    raw.offer_id,
+    path + '.offer_id'
+  );
+
+  nonEmptyString(
+    raw.segment_id,
+    path + '.segment_id',
+    500
+  );
+
+  validateB3Scenario(
+    raw.scenario_id,
+    path + '.scenario_id'
+  );
+
+  nonEmptyString(
+    raw.currency,
+    path + '.currency',
+    16
+  );
+
+  nonEmptyString(
+    raw.unit,
+    path + '.unit',
+    500
+  );
+
+  nonEmptyString(
+    raw.scope_ref,
+    path + '.scope_ref',
+    500
+  );
+
+  nonEmptyString(
+    raw.effective_date,
+    path + '.effective_date',
+    64
   );
 
   return raw;
@@ -7761,6 +7880,70 @@ function evaluateFinalEconomicCorridor(
     });
   }
 
+  const targetDimensionChecks = [
+    [
+      'offer_id',
+      raw.offer_id,
+      target.offer_id,
+      'TARGET_OFFER_MISMATCH'
+    ],
+    [
+      'segment_id',
+      raw.segment_id,
+      target.segment_id,
+      'TARGET_SEGMENT_MISMATCH'
+    ],
+    [
+      'scenario_id',
+      raw.scenario_id,
+      target.scenario_id,
+      'TARGET_SCENARIO_MISMATCH'
+    ],
+    [
+      'currency',
+      raw.currency,
+      target.currency,
+      'TARGET_CURRENCY_MISMATCH'
+    ],
+    [
+      'unit',
+      raw.unit,
+      target.unit,
+      'TARGET_UNIT_MISMATCH'
+    ],
+    [
+      'scope_ref',
+      raw.scope_ref,
+      target.scope_ref,
+      'TARGET_SCOPE_MISMATCH'
+    ],
+    [
+      'effective_date',
+      raw.effective_date,
+      target.effective_date,
+      'TARGET_EFFECTIVE_DATE_MISMATCH'
+    ]
+  ];
+
+  for (
+    const [
+      dimension,
+      expected,
+      actual,
+      code
+    ] of targetDimensionChecks
+  ) {
+    if (expected !== actual) {
+      integrationIssues.push({
+        code,
+        message:
+          'Final-corridor ' +
+          dimension +
+          ' is not exactly compatible with the evaluated target-policy result.'
+      });
+    }
+  }
+
   const dimensionChecks = [
     [
       'offer_id',
@@ -8208,6 +8391,9 @@ function evaluateFinalEconomicCorridor(
       target_policy_id:
         raw.target_policy_id,
 
+      pricing_policy:
+        target.pricing_policy,
+
       target_policy_status:
         target.status,
 
@@ -8332,9 +8518,933 @@ function evaluateFinalEconomicCorridor(
 
 /* R5 B3.5 FINAL ECONOMIC CORRIDOR — END */
 
+
+/* R5 PRICING DECISION GOVERNANCE — BEGIN */
+
+/*
+ * This layer governs an already evaluated B3.5 corridor.
+ *
+ * It does not:
+ * - calculate or recommend a price;
+ * - alter B3.5 analytical status;
+ * - infer willingness-to-pay, demand, profitability or market acceptance;
+ * - persist, publish or activate a pricing decision.
+ *
+ * B3.5 does not project pricing_policy directly.
+ * Therefore an explicit target_policy_context is required.
+ * Its target_policy_id must match the B3.5 target-policy identity.
+ */
+
+const R5_PRICING_GOVERNANCE_ENUMS =
+  Object.freeze({
+    readiness_status:
+      Object.freeze([
+        'governance_ready',
+        'governance_blocked',
+        'governance_manual_review'
+      ]),
+
+    transition_status:
+      Object.freeze([
+        'allowed',
+        'forbidden'
+      ])
+  });
+
+function validatePricingGovernanceApproval(
+  raw,
+  path = 'approval'
+) {
+  validatePlainObject(raw, path);
+
+  nonEmptyString(
+    raw.approver_ref,
+    path + '.approver_ref',
+    500
+  );
+
+  nonEmptyString(
+    raw.approved_at,
+    path + '.approved_at',
+    64
+  );
+
+  nonEmptyString(
+    raw.approval_ref,
+    path + '.approval_ref',
+    500
+  );
+
+  return raw;
+}
+
+function validatePricingGovernanceSupersession(
+  raw,
+  path = 'supersession'
+) {
+  validatePlainObject(raw, path);
+
+  if (
+    raw.supersedes_decision_ref !== null &&
+    raw.supersedes_decision_ref !== undefined
+  ) {
+    nonEmptyString(
+      raw.supersedes_decision_ref,
+      path + '.supersedes_decision_ref',
+      500
+    );
+  }
+
+  if (
+    raw.superseded_by_decision_ref !== null &&
+    raw.superseded_by_decision_ref !== undefined
+  ) {
+    nonEmptyString(
+      raw.superseded_by_decision_ref,
+      path + '.superseded_by_decision_ref',
+      500
+    );
+  }
+
+  return raw;
+}
+
+function validatePricingGovernanceDecisionProvenance(
+  raw,
+  path = 'decision_provenance'
+) {
+  validatePlainObject(raw, path);
+
+  nonEmptyString(
+    raw.actor_ref,
+    path + '.actor_ref',
+    500
+  );
+
+  nonEmptyString(
+    raw.decided_at,
+    path + '.decided_at',
+    64
+  );
+
+  if (
+    raw.source_ref !== null &&
+    raw.source_ref !== undefined
+  ) {
+    nonEmptyString(
+      raw.source_ref,
+      path + '.source_ref',
+      500
+    );
+  }
+
+  return raw;
+}
+
+function validatePricingGovernanceTargetPolicyContext(
+  raw,
+  path = 'target_policy_context'
+) {
+  validatePlainObject(raw, path);
+
+  nonEmptyString(
+    raw.target_policy_id,
+    path + '.target_policy_id',
+    500
+  );
+
+  return raw;
+}
+
+function validatePricingGovernanceCorridorResult(
+  raw,
+  path = 'corridor_result'
+) {
+  validatePlainObject(raw, path);
+
+  nonEmptyString(
+    raw.corridor_assessment_id,
+    path + '.corridor_assessment_id',
+    500
+  );
+
+  validateFinalEconomicCorridorStatus(
+    raw.status,
+    path + '.status'
+  );
+
+  validatePlainObject(
+    raw.economic_floor,
+    path + '.economic_floor'
+  );
+
+  finiteNumber(
+    raw.economic_floor.value,
+    path + '.economic_floor.value',
+    { min: 0 }
+  );
+
+  validatePlainObject(
+    raw.strategic_target,
+    path + '.strategic_target'
+  );
+
+  finiteNumber(
+    raw.strategic_target.value,
+    path + '.strategic_target.value',
+    { min: 0 }
+  );
+
+  nonEmptyString(
+    raw.strategic_target.target_policy_id,
+    path + '.strategic_target.target_policy_id',
+    500
+  );
+
+  validateR5PricingPolicy(
+    raw.strategic_target.pricing_policy,
+    path + '.strategic_target.pricing_policy'
+  );
+
+  validatePlainObject(
+    raw.affordability_ceiling,
+    path + '.affordability_ceiling'
+  );
+
+  validateBoolean(
+    raw.affordability_ceiling.available,
+    path + '.affordability_ceiling.available'
+  );
+
+  if (
+    raw.affordability_ceiling.value !== null
+  ) {
+    finiteNumber(
+      raw.affordability_ceiling.value,
+      path + '.affordability_ceiling.value',
+      { min: 0 }
+    );
+  }
+
+  validateBoolean(
+    raw.subsidy_required,
+    path + '.subsidy_required'
+  );
+
+  validatePlainObject(
+    raw.support_context,
+    path + '.support_context'
+  );
+
+  validatePlainObject(
+    raw.comparison_dimensions,
+    path + '.comparison_dimensions'
+  );
+
+  validateR5OfferId(
+    raw.comparison_dimensions.offer_id,
+    path + '.comparison_dimensions.offer_id'
+  );
+
+  nonEmptyString(
+    raw.comparison_dimensions.segment_id,
+    path + '.comparison_dimensions.segment_id',
+    500
+  );
+
+  validateB3Scenario(
+    raw.comparison_dimensions.scenario_id,
+    path + '.comparison_dimensions.scenario_id'
+  );
+
+  nonEmptyString(
+    raw.comparison_dimensions.currency,
+    path + '.comparison_dimensions.currency',
+    16
+  );
+
+  nonEmptyString(
+    raw.comparison_dimensions.unit,
+    path + '.comparison_dimensions.unit',
+    500
+  );
+
+  nonEmptyString(
+    raw.comparison_dimensions.scope_ref,
+    path + '.comparison_dimensions.scope_ref',
+    500
+  );
+
+  nonEmptyString(
+    raw.comparison_dimensions.effective_date,
+    path + '.comparison_dimensions.effective_date',
+    64
+  );
+
+  validateArray(
+    raw.evidence_refs,
+    path + '.evidence_refs'
+  );
+
+  validateArray(
+    raw.market_context_refs,
+    path + '.market_context_refs'
+  );
+
+  return raw;
+}
+
+function validatePricingGovernanceDecisionInput(
+  raw,
+  path = 'pricing_governance_decision_input'
+) {
+  validatePlainObject(raw, path);
+
+  nonEmptyString(
+    raw.pricing_decision_id,
+    path + '.pricing_decision_id',
+    500
+  );
+
+  nonEmptyString(
+    raw.corridor_assessment_ref,
+    path + '.corridor_assessment_ref',
+    500
+  );
+
+  nonEmptyString(
+    raw.target_policy_ref,
+    path + '.target_policy_ref',
+    500
+  );
+
+  validateR5OfferId(
+    raw.offer_id,
+    path + '.offer_id'
+  );
+
+  nonEmptyString(
+    raw.segment_id,
+    path + '.segment_id',
+    500
+  );
+
+  validateB3Scenario(
+    raw.scenario_id,
+    path + '.scenario_id'
+  );
+
+  nonEmptyString(
+    raw.currency,
+    path + '.currency',
+    16
+  );
+
+  nonEmptyString(
+    raw.unit,
+    path + '.unit',
+    500
+  );
+
+  nonEmptyString(
+    raw.scope_ref,
+    path + '.scope_ref',
+    500
+  );
+
+  nonEmptyString(
+    raw.effective_date,
+    path + '.effective_date',
+    64
+  );
+
+  validatePlainObject(
+    raw.governed_target,
+    path + '.governed_target'
+  );
+
+  finiteNumber(
+    raw.governed_target.value,
+    path + '.governed_target.value',
+    { min: 0 }
+  );
+
+  validateR5PricingPolicy(
+    raw.governed_target.pricing_policy,
+    path + '.governed_target.pricing_policy'
+  );
+
+  validatePricingGovernanceTargetPolicyContext(
+    raw.target_policy_context,
+    path + '.target_policy_context'
+  );
+
+  validatePricingGovernanceCorridorResult(
+    raw.corridor_result,
+    path + '.corridor_result'
+  );
+
+  validateR5PricingDecisionStatus(
+    raw.status,
+    path + '.status'
+  );
+
+  nonEmptyString(
+    raw.decision_rationale,
+    path + '.decision_rationale',
+    4000
+  );
+
+  validatePricingGovernanceDecisionProvenance(
+    raw.decision_provenance,
+    path + '.decision_provenance'
+  );
+
+  if (
+    raw.approval !== null &&
+    raw.approval !== undefined
+  ) {
+    validatePricingGovernanceApproval(
+      raw.approval,
+      path + '.approval'
+    );
+  }
+
+  if (
+    raw.supersession !== null &&
+    raw.supersession !== undefined
+  ) {
+    validatePricingGovernanceSupersession(
+      raw.supersession,
+      path + '.supersession'
+    );
+  }
+
+  validateArray(
+    raw.evidence_refs,
+    path + '.evidence_refs'
+  );
+
+  raw.evidence_refs.forEach(
+    (value, index) => {
+      nonEmptyString(
+        value,
+        path + '.evidence_refs[' + index + ']',
+        500
+      );
+    }
+  );
+
+  validateOptionalString(
+    raw.notes,
+    path + '.notes'
+  );
+
+  /*
+   * Structural approval consistency.
+   */
+  if (
+    raw.status === 'approved' &&
+    (
+      raw.approval === null ||
+      raw.approval === undefined
+    )
+  ) {
+    fail(
+      path + '.approval'
+    );
+  }
+
+  if (
+    raw.status !== 'approved' &&
+    raw.approval !== null &&
+    raw.approval !== undefined
+  ) {
+    fail(
+      path + '.approval'
+    );
+  }
+
+  /*
+   * Structural supersession consistency.
+   */
+  if (
+    raw.status === 'superseded'
+  ) {
+    if (
+      raw.supersession === null ||
+      raw.supersession === undefined ||
+      raw.supersession.superseded_by_decision_ref === null ||
+      raw.supersession.superseded_by_decision_ref === undefined
+    ) {
+      fail(
+        path + '.supersession'
+      );
+    }
+  }
+
+  if (
+    raw.status !== 'superseded' &&
+    raw.supersession !== null &&
+    raw.supersession !== undefined &&
+    raw.supersession.superseded_by_decision_ref !== null &&
+    raw.supersession.superseded_by_decision_ref !== undefined
+  ) {
+    fail(
+      path + '.supersession.superseded_by_decision_ref'
+    );
+  }
+
+  if (
+    raw.supersession !== null &&
+    raw.supersession !== undefined &&
+    raw.supersession.supersedes_decision_ref ===
+      raw.pricing_decision_id
+  ) {
+    fail(
+      path + '.supersession.supersedes_decision_ref'
+    );
+  }
+
+  if (
+    raw.supersession !== null &&
+    raw.supersession !== undefined &&
+    raw.supersession.superseded_by_decision_ref ===
+      raw.pricing_decision_id
+  ) {
+    fail(
+      path + '.supersession.superseded_by_decision_ref'
+    );
+  }
+
+  return raw;
+}
+
+function validatePricingGovernanceTransition(
+  raw,
+  path = 'pricing_governance_transition'
+) {
+  validatePlainObject(raw, path);
+
+  nonEmptyString(
+    raw.pricing_decision_id,
+    path + '.pricing_decision_id',
+    500
+  );
+
+  if (
+    raw.from_status !== null
+  ) {
+    validateR5PricingDecisionStatus(
+      raw.from_status,
+      path + '.from_status'
+    );
+  }
+
+  validateR5PricingDecisionStatus(
+    raw.to_status,
+    path + '.to_status'
+  );
+
+  const from =
+    raw.from_status;
+
+  const to =
+    raw.to_status;
+
+  const allowed =
+    (
+      from === null &&
+      to === 'proposed'
+    ) ||
+    (
+      from === 'proposed' &&
+      (
+        to === 'approved' ||
+        to === 'rejected' ||
+        to === 'superseded'
+      )
+    ) ||
+    (
+      from === 'approved' &&
+      to === 'superseded'
+    );
+
+  return {
+    pricing_decision_id:
+      raw.pricing_decision_id,
+
+    from_status:
+      from,
+
+    to_status:
+      to,
+
+    transition_status:
+      allowed
+        ? 'allowed'
+        : 'forbidden',
+
+    allowed
+  };
+}
+
+function evaluatePricingGovernanceDecision(
+  raw,
+  path = 'pricing_governance_decision_input'
+) {
+  validatePricingGovernanceDecisionInput(
+    raw,
+    path
+  );
+
+  const corridor =
+    raw.corridor_result;
+
+  const dimensions =
+    corridor.comparison_dimensions;
+
+  const blockingReasons = [];
+  const diagnostics = [];
+
+  const block = (
+    code,
+    message
+  ) => {
+    blockingReasons.push({
+      code
+    });
+
+    diagnostics.push({
+      severity:
+        'blocking',
+      code,
+      message
+    });
+  };
+
+  const info = (
+    code,
+    message
+  ) => {
+    diagnostics.push({
+      severity:
+        'info',
+      code,
+      message
+    });
+  };
+
+  /*
+   * Exact immutable identity binding.
+   */
+  if (
+    raw.corridor_assessment_ref !==
+    corridor.corridor_assessment_id
+  ) {
+    block(
+      'CORRIDOR_ASSESSMENT_REF_MISMATCH',
+      'Governance decision does not reference the supplied B3.5 corridor identity.'
+    );
+  }
+
+  if (
+    raw.target_policy_ref !==
+    corridor.strategic_target.target_policy_id
+  ) {
+    block(
+      'TARGET_POLICY_REF_MISMATCH',
+      'Governance decision does not reference the B3.5 target-policy identity.'
+    );
+  }
+
+  if (
+    raw.target_policy_context.target_policy_id !==
+    raw.target_policy_ref
+  ) {
+    block(
+      'TARGET_POLICY_CONTEXT_REF_MISMATCH',
+      'Declared target-policy context identity does not match the governed target-policy reference.'
+    );
+  }
+
+  /*
+   * Pricing policy is explicit because B3.5 does not project it.
+   * Both governance surfaces must agree; no policy is inferred.
+   */
+  if (
+    raw.governed_target.pricing_policy !==
+    corridor.strategic_target.pricing_policy
+  ) {
+    block(
+      'PRICING_POLICY_AUTHORITY_MISMATCH',
+      'Governed pricing policy differs from the authoritative B3.5 strategic-target pricing policy.'
+    );
+  }
+
+  /*
+   * Governance cannot manufacture a different price.
+   */
+  if (
+    raw.governed_target.value !==
+    corridor.strategic_target.value
+  ) {
+    block(
+      'GOVERNED_TARGET_VALUE_MISMATCH',
+      'Governance target differs from the B3.5 strategic target.'
+    );
+  }
+
+  const dimensionChecks = [
+    [
+      'offer_id',
+      raw.offer_id,
+      dimensions.offer_id,
+      'OFFER_MISMATCH'
+    ],
+    [
+      'segment_id',
+      raw.segment_id,
+      dimensions.segment_id,
+      'SEGMENT_MISMATCH'
+    ],
+    [
+      'scenario_id',
+      raw.scenario_id,
+      dimensions.scenario_id,
+      'SCENARIO_MISMATCH'
+    ],
+    [
+      'currency',
+      raw.currency,
+      dimensions.currency,
+      'CURRENCY_MISMATCH'
+    ],
+    [
+      'unit',
+      raw.unit,
+      dimensions.unit,
+      'UNIT_MISMATCH'
+    ],
+    [
+      'scope_ref',
+      raw.scope_ref,
+      dimensions.scope_ref,
+      'SCOPE_MISMATCH'
+    ],
+    [
+      'effective_date',
+      raw.effective_date,
+      dimensions.effective_date,
+      'EFFECTIVE_DATE_MISMATCH'
+    ]
+  ];
+
+  for (
+    const [
+      dimension,
+      expected,
+      actual,
+      code
+    ] of dimensionChecks
+  ) {
+    if (expected !== actual) {
+      block(
+        code,
+        'Governance ' +
+          dimension +
+          ' does not exactly match the B3.5 comparison dimension.'
+      );
+    }
+  }
+
+  /*
+   * Approved is a governance state only.
+   * Certain analytical states are not approvable.
+   */
+  if (
+    raw.status === 'approved'
+  ) {
+    if (
+      corridor.status ===
+        'incomplete_cost_basis' ||
+      corridor.status ===
+        'conflicting_evidence' ||
+      corridor.status ===
+        'manual_review_required'
+    ) {
+      block(
+        'ANALYTICAL_STATUS_NOT_APPROVABLE',
+        'Current B3.5 analytical status cannot be approved by governance.'
+      );
+    }
+
+    if (
+      corridor.status ===
+      'above_affordability_ceiling'
+    ) {
+      block(
+        'ABOVE_CEILING_REQUIRES_EXCEPTIONAL_REVIEW',
+        'Above-affordability analytical result cannot be directly approved by this governance contract.'
+      );
+    }
+
+    if (
+      corridor.status ===
+      'below_economic_floor'
+    ) {
+      const supportReady =
+        corridor.support_context &&
+        corridor.support_context.adaptation_status ===
+          'adapted' &&
+        corridor.support_context.subsidy_policy !==
+          null;
+
+      if (!supportReady) {
+        block(
+          'BELOW_FLOOR_SUPPORT_NOT_READY',
+          'Below-floor approval requires already-established upstream support context.'
+        );
+      }
+    }
+  }
+
+  /*
+   * Governance approval never upgrades analytical evidence.
+   */
+  if (
+    raw.status === 'approved'
+  ) {
+    info(
+      'GOVERNANCE_APPROVAL_ONLY',
+      'Approval represents an explicit governance act and does not validate WTP, demand, profitability or market acceptance.'
+    );
+  }
+
+  let readinessStatus =
+    'governance_ready';
+
+  if (blockingReasons.length > 0) {
+    readinessStatus =
+      'governance_blocked';
+  } else if (
+    corridor.status ===
+      'no_affordability_evidence' ||
+    corridor.status ===
+      'above_affordability_ceiling' ||
+    corridor.status ===
+      'manual_review_required'
+  ) {
+    readinessStatus =
+      'governance_manual_review';
+  }
+
+  return {
+    pricing_decision_id:
+      raw.pricing_decision_id,
+
+    governance_readiness_status:
+      readinessStatus,
+
+    requested_status:
+      raw.status,
+
+    ready_for_declared_governance_status:
+      blockingReasons.length === 0,
+
+    corridor_assessment_ref:
+      raw.corridor_assessment_ref,
+
+    target_policy_ref:
+      raw.target_policy_ref,
+
+    governed_target: {
+      value:
+        raw.governed_target.value,
+
+      pricing_policy:
+        raw.governed_target.pricing_policy,
+
+      pricing_policy_binding:
+        'b3_5_strategic_target'
+    },
+
+    analytical_snapshot: {
+      status:
+        corridor.status,
+
+      economic_floor_value:
+        corridor.economic_floor.value,
+
+      strategic_target_value:
+        corridor.strategic_target.value,
+
+      affordability_ceiling_value:
+        corridor.affordability_ceiling.value,
+
+      affordability_ceiling_available:
+        corridor.affordability_ceiling.available,
+
+      subsidy_required:
+        corridor.subsidy_required
+    },
+
+    comparison_dimensions: {
+      ...dimensions
+    },
+
+    decision_rationale:
+      raw.decision_rationale,
+
+    decision_provenance: {
+      ...raw.decision_provenance
+    },
+
+    approval:
+      raw.approval
+        ? { ...raw.approval }
+        : null,
+
+    supersession:
+      raw.supersession
+        ? { ...raw.supersession }
+        : null,
+
+    governance_evidence_refs: [
+      ...raw.evidence_refs
+    ],
+
+    analytical_evidence_refs: [
+      ...corridor.evidence_refs
+    ],
+
+    analytical_market_context_refs: [
+      ...corridor.market_context_refs
+    ],
+
+    blocking_reasons:
+      blockingReasons,
+
+    diagnostics,
+
+    notes:
+      raw.notes ?? null
+  };
+}
+
+/* R5 PRICING DECISION GOVERNANCE — END */
+
 /* R5 CONTRACT FOUNDATION — END */
 
 module.exports = {
+  R5_PRICING_GOVERNANCE_ENUMS,
+  validatePricingGovernanceApproval,
+  validatePricingGovernanceSupersession,
+  validatePricingGovernanceDecisionProvenance,
+  validatePricingGovernanceTargetPolicyContext,
+  validatePricingGovernanceDecisionInput,
+  validatePricingGovernanceTransition,
+  evaluatePricingGovernanceDecision,
   R5_B3_5_ENUMS,
   validateFinalEconomicCorridorStatus,
   validateFinalEconomicCorridorInput,

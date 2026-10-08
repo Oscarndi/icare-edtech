@@ -1195,3 +1195,114 @@ console.log(
     'FINROOM_R5_B3_3_PROVENANCE_CHANNEL_SEPARATION=PASS'
   );
 })();
+
+
+/* R5 SEMANTIC REPAIR — B3.3 PRICING POLICY PROPAGATION */
+
+{
+  const input =
+    base();
+
+  input.strategic_target.pricing_policy =
+    'premium';
+
+  const result =
+    evaluateTargetPolicy(input);
+
+  assert.strictEqual(
+    result.pricing_policy,
+    'premium'
+  );
+
+  assert.strictEqual(
+    result.pricing_policy,
+    input.strategic_target.pricing_policy
+  );
+}
+
+console.log(
+  'FINROOM_R5_B3_3_PRICING_POLICY_PROPAGATION=PASS'
+);
+
+/* R5 B3.5 ADDITIVE REPAIR — B3.3 EXACT DIMENSION PROPAGATION */
+
+{
+  const input =
+    base();
+
+  const result =
+    evaluateTargetPolicy(
+      input
+    );
+
+  assert.strictEqual(
+    result.offer_id,
+    input.offer_id
+  );
+
+  assert.strictEqual(
+    result.segment_id,
+    input.segment_id
+  );
+
+  assert.strictEqual(
+    result.scenario_id,
+    input.scenario_id
+  );
+
+  assert.strictEqual(
+    result.currency,
+    input.strategic_target.currency
+  );
+
+  assert.strictEqual(
+    result.unit,
+    input.strategic_target.unit
+  );
+
+  assert.strictEqual(
+    result.scope_ref,
+    input.strategic_target.scope_ref
+  );
+
+  assert.strictEqual(
+    result.effective_date,
+    input.strategic_target.effective_date
+  );
+}
+
+{
+  const input =
+    base();
+
+  input.offer_id =
+    'home_saas';
+
+  input.floor_context.offer_id =
+    'home_saas';
+
+  input.scenario_id =
+    'expanded';
+
+  input.floor_context.scenario_id =
+    'expanded';
+
+  const result =
+    evaluateTargetPolicy(
+      input
+    );
+
+  assert.strictEqual(
+    result.offer_id,
+    'home_saas'
+  );
+
+  assert.strictEqual(
+    result.scenario_id,
+    'expanded'
+  );
+}
+
+console.log(
+  'FINROOM_R5_B3_3_EXACT_DIMENSION_PROPAGATION=PASS'
+);

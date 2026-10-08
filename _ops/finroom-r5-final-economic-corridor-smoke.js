@@ -92,6 +92,30 @@ const base = {
     status:
       'ready_at_or_above_floor',
 
+    pricing_policy:
+      'market_alignment',
+
+    offer_id:
+      'school_b2b2c',
+
+    segment_id:
+      'synthetic-segment',
+
+    scenario_id:
+      'current',
+
+    currency:
+      'XAF',
+
+    unit:
+      'currency_per_learner_month',
+
+    scope_ref:
+      'synthetic:scope:A',
+
+    effective_date:
+      '2099-01-01',
+
     target_value:
       110,
 
@@ -1084,4 +1108,258 @@ console.log(
 
 console.log(
   'FINROOM_R5_B3_5_DECISION_PRECEDENCE=PASS'
+);
+
+
+/* R5 SEMANTIC REPAIR — B3.5 PRICING POLICY PROJECTION */
+
+{
+  const input =
+    clone(base);
+
+  input.target_policy_result.pricing_policy =
+    'premium';
+
+  const result =
+    evaluateFinalEconomicCorridor(input);
+
+  assert.strictEqual(
+    result.strategic_target.pricing_policy,
+    'premium'
+  );
+}
+
+{
+  const input =
+    clone(base);
+
+  delete input.target_policy_result.pricing_policy;
+
+  assert.throws(
+    () =>
+      evaluateFinalEconomicCorridor(input)
+  );
+}
+
+{
+  const input =
+    clone(base);
+
+  input.target_policy_result.pricing_policy =
+    'not_a_policy';
+
+  assert.throws(
+    () =>
+      evaluateFinalEconomicCorridor(input)
+  );
+}
+
+console.log(
+  'FINROOM_R5_B3_5_PRICING_POLICY_PROJECTION=PASS'
+);
+
+/* R5 B3.5 ADDITIVE REPAIR — EXACT TARGET DIMENSION BINDING */
+
+{
+  const result =
+    evaluate();
+
+  assert.strictEqual(
+    result.status,
+    'valid_corridor'
+  );
+}
+
+for (const [
+  field,
+  replacement
+] of [
+  [
+    'offer_id',
+    'home_saas'
+  ],
+  [
+    'segment_id',
+    'synthetic-other-segment'
+  ],
+  [
+    'scenario_id',
+    'expanded'
+  ],
+  [
+    'currency',
+    'USD'
+  ],
+  [
+    'unit',
+    'synthetic_other_unit'
+  ],
+  [
+    'scope_ref',
+    'synthetic:scope:OTHER'
+  ],
+  [
+    'effective_date',
+    '2099-02-01'
+  ]
+]) {
+  const input =
+    clone(base);
+
+  input.target_policy_result[field] =
+    replacement;
+
+  const result =
+    evaluateFinalEconomicCorridor(
+      input
+    );
+
+  assert.strictEqual(
+    result.status,
+    'manual_review_required',
+    'Expected target-policy-result dimension mismatch for ' +
+      field
+  );
+}
+
+console.log(
+  'FINROOM_R5_B3_5_TARGET_DIMENSION_BINDING=PASS'
+);
+
+/* --------------------------------------------------------------- */
+/* rejected support remains non-applicable and cannot rescue floor */
+/* --------------------------------------------------------------- */
+
+{
+  const input =
+    clone(base);
+
+  input.target_policy_result.status =
+    'below_floor_without_support';
+
+  input.target_policy_result.target_value =
+    90;
+
+  input.target_policy_result.floor_value =
+    100;
+
+  input.target_policy_result.relation_to_floor =
+    'below';
+
+  input.target_policy_result.subsidy_required =
+    true;
+
+  input.target_policy_result.required_support_gap =
+    10;
+
+  input.target_policy_result.ready_for_final_target_policy =
+    false;
+
+  input.support_policy = {
+    status:
+      'rejected',
+
+    type:
+      'subsidy',
+
+    amount_or_rule:
+      'synthetic rejected support rule',
+
+    source_ref:
+      null,
+
+    evidence_refs: []
+  };
+
+  const result =
+    evaluateFinalEconomicCorridor(
+      input
+    );
+
+  assert.strictEqual(
+    result.status,
+    'below_economic_floor'
+  );
+
+  assert.strictEqual(
+    result.support_context.adaptation_status,
+    'not_applicable'
+  );
+
+  assert.strictEqual(
+    result.support_context.subsidy_policy,
+    null
+  );
+
+  assert.notStrictEqual(
+    result.support_context.source_support_policy,
+    null
+  );
+
+  assert.strictEqual(
+    result.support_context.source_support_policy.status,
+    'rejected'
+  );
+}
+
+console.log(
+  'FINROOM_R5_B3_5_REJECTED_SUPPORT_COVERAGE=PASS'
+);
+
+/* --------------------------------------------------------------- */
+/* to_validate affordability remains usable but not upgraded       */
+/* --------------------------------------------------------------- */
+
+{
+  const input =
+    clone(base);
+
+  input.affordability_result.status =
+    'ceiling_to_validate';
+
+  input.affordability_result.evidence_status =
+    'to_validate';
+
+  input.affordability_result.ready_for_corridor_use =
+    true;
+
+  input.affordability_result.ceiling_available =
+    true;
+
+  input.affordability_result.ceiling_value =
+    120;
+
+  const result =
+    evaluateFinalEconomicCorridor(
+      input
+    );
+
+  assert.strictEqual(
+    result.status,
+    'valid_corridor'
+  );
+
+  assert.strictEqual(
+    result.affordability_ceiling.status,
+    'ceiling_to_validate'
+  );
+
+  assert.strictEqual(
+    result.affordability_ceiling.evidence_status,
+    'to_validate'
+  );
+
+  assert.strictEqual(
+    result.affordability_ceiling.usable,
+    true
+  );
+
+  assert.strictEqual(
+    result.affordability_ceiling.available,
+    true
+  );
+}
+
+console.log(
+  'FINROOM_R5_B3_5_TO_VALIDATE_COVERAGE=PASS'
 );
