@@ -4359,9 +4359,663 @@ function validateReferenceTechnicalCostEvidenceSet(
 
 /* R5 B2 REFERENCE-ONLY COST RECONCILIATION — END */
 
+/* R5 B3.1 ECONOMIC CORRIDOR CONTRACT — BEGIN
+ *
+ * Contract + validator foundation only.
+ *
+ * Canonical intended relation:
+ *
+ *   ECONOMIC_FLOOR
+ *     <= STRATEGIC_TARGET
+ *     <= AFFORDABILITY_CEILING
+ *
+ * IMPORTANT:
+ * - no official ICARE price recommendation is defined here;
+ * - no real/private ICARE monetary values are defined here;
+ * - no willingness-to-pay claim is created here;
+ * - no corridor result/status arithmetic is authoritative yet;
+ * - no browser pricing authority is created here;
+ * - no TechRoom/BOM authority is inferred here;
+ * - no FX conversion is implemented here.
+ *
+ * TechRoom → FinRoom boundary:
+ * - TechRoom owns technical change/reason/characteristics;
+ * - FinRoom may reference an authorized configuration/change;
+ * - detailed technical characteristics are not owned here;
+ * - a technical change does not silently mutate the official
+ *   financial model.
+ */
+
+const R5_ECONOMIC_CORRIDOR_STATUS = new Set([
+  'valid_corridor',
+  'below_economic_floor',
+  'above_affordability_ceiling',
+  'no_affordability_evidence',
+  'incomplete_cost_basis',
+  'conflicting_evidence',
+  'manual_review_required'
+]);
+
+const R5_PRICING_POLICY = new Set([
+  'penetration',
+  'market_alignment',
+  'value_based',
+  'premium',
+  'skimming',
+  'cost_plus',
+  'subsidized',
+  'cross_subsidized',
+  'custom_documented'
+]);
+
+const R5_ECONOMIC_FLOOR_COST_LEVEL = new Set([
+  'direct_technical_cost',
+  'landed_deployed_technical_cost',
+  'total_service_cost',
+  'full_economic_cost'
+]);
+
+const R5_AFFORDABILITY_EVIDENCE_STATUS =
+  new Set([
+    'preliminary_estimate',
+    'to_validate',
+    'observed',
+    'validated_for_declared_scope',
+    'unavailable'
+  ]);
+
+const R5_B3_SCENARIO = new Set([
+  'current',
+  'expanded'
+]);
+
+/*
+ * Sources that cannot establish an internal economic floor.
+ */
+const R5_B3_FLOOR_DISALLOWED_SOURCE_TYPE =
+  new Set([
+    'market_reference',
+    'competitor_reference',
+    'customer_interview',
+    'pilot_observation',
+    'management_target',
+    'technical_fixture'
+  ]);
+
+/*
+ * Sources that may inform affordability.
+ *
+ * This does NOT imply willingness-to-pay validation.
+ */
+const R5_B3_AFFORDABILITY_SOURCE_TYPE =
+  new Set([
+    'statutory_source',
+    'market_reference',
+    'competitor_reference',
+    'customer_interview',
+    'pilot_observation',
+    'contract'
+  ]);
+
+const R5_B3_CORRIDOR_ENUMS = Object.freeze({
+  corridor_status:
+    Object.freeze([
+      ...R5_ECONOMIC_CORRIDOR_STATUS
+    ]),
+  pricing_policy:
+    Object.freeze([
+      ...R5_PRICING_POLICY
+    ]),
+  economic_floor_cost_level:
+    Object.freeze([
+      ...R5_ECONOMIC_FLOOR_COST_LEVEL
+    ]),
+  affordability_evidence_status:
+    Object.freeze([
+      ...R5_AFFORDABILITY_EVIDENCE_STATUS
+    ]),
+  scenario:
+    Object.freeze([
+      ...R5_B3_SCENARIO
+    ])
+});
+
+function validateB3EnumValue(
+  value,
+  allowed,
+  path
+) {
+  if (
+    typeof value !== 'string' ||
+    !allowed.has(value)
+  ) {
+    fail(path);
+  }
+
+  return value;
+}
+
+function validateEconomicCorridorStatus(
+  value,
+  path = 'economic_corridor_status'
+) {
+  return validateB3EnumValue(
+    value,
+    R5_ECONOMIC_CORRIDOR_STATUS,
+    path
+  );
+}
+
+function validateR5PricingPolicy(
+  value,
+  path = 'pricing_policy'
+) {
+  return validateB3EnumValue(
+    value,
+    R5_PRICING_POLICY,
+    path
+  );
+}
+
+function validateEconomicFloorCostLevel(
+  value,
+  path = 'economic_floor.cost_level'
+) {
+  return validateB3EnumValue(
+    value,
+    R5_ECONOMIC_FLOOR_COST_LEVEL,
+    path
+  );
+}
+
+function validateAffordabilityEvidenceStatus(
+  value,
+  path =
+    'affordability_ceiling.evidence_status'
+) {
+  return validateB3EnumValue(
+    value,
+    R5_AFFORDABILITY_EVIDENCE_STATUS,
+    path
+  );
+}
+
+function validateB3Scenario(
+  value,
+  path = 'scenario_id'
+) {
+  return validateB3EnumValue(
+    value,
+    R5_B3_SCENARIO,
+    path
+  );
+}
+
+function validateB3EvidenceRefs(
+  raw,
+  path
+) {
+  return validateArray(
+    raw,
+    path
+  ).map((ref, index) => {
+    nonEmptyString(
+      ref,
+      path + '[' + index + ']',
+      500
+    );
+
+    return ref;
+  });
+}
+
+function validateB3NonNegativeNumber(
+  value,
+  path
+) {
+  finiteNumber(value, path);
+
+  if (value < 0) {
+    fail(path);
+  }
+
+  return value;
+}
+
+function rejectB3ShadowCurrency(
+  raw,
+  path
+) {
+  /*
+   * B3.1 has one corridor-level currency authority.
+   * Nested currency creates an undeclared FX seam.
+   */
+  if (raw.currency !== undefined) {
+    fail(path + '.currency');
+  }
+}
+
+function validateEconomicFloor(
+  raw,
+  path = 'economic_floor'
+) {
+  validatePlainObject(raw, path);
+
+  validateB3NonNegativeNumber(
+    raw.value,
+    path + '.value'
+  );
+
+  validateEconomicFloorCostLevel(
+    raw.cost_level,
+    path + '.cost_level'
+  );
+
+  nonEmptyString(
+    raw.cost_basis_ref,
+    path + '.cost_basis_ref',
+    500
+  );
+
+  validateR5EconomicCostCompleteness(
+    raw.completeness_status,
+    path + '.completeness_status'
+  );
+
+  if (
+    raw.completeness_status === 'unavailable'
+  ) {
+    fail(path + '.completeness_status');
+  }
+
+  nonEmptyString(
+    raw.provenance,
+    path + '.provenance',
+    500
+  );
+
+  validateR5SourceType(
+    raw.source_type,
+    path + '.source_type'
+  );
+
+  if (
+    R5_B3_FLOOR_DISALLOWED_SOURCE_TYPE.has(
+      raw.source_type
+    )
+  ) {
+    fail(path + '.source_type');
+  }
+
+  validateR5Confidence(
+    raw.confidence,
+    path + '.confidence'
+  );
+
+  validateB3EvidenceRefs(
+    raw.evidence_refs,
+    path + '.evidence_refs'
+  );
+
+  rejectB3ShadowCurrency(raw, path);
+
+  return raw;
+}
+
+function validateStrategicTarget(
+  raw,
+  path = 'strategic_target'
+) {
+  validatePlainObject(raw, path);
+
+  validateB3NonNegativeNumber(
+    raw.value,
+    path + '.value'
+  );
+
+  validateR5PricingPolicy(
+    raw.pricing_policy,
+    path + '.pricing_policy'
+  );
+
+  nonEmptyString(
+    raw.rationale,
+    path + '.rationale',
+    1000
+  );
+
+  nonEmptyString(
+    raw.provenance,
+    path + '.provenance',
+    500
+  );
+
+  validateR5SourceType(
+    raw.source_type,
+    path + '.source_type'
+  );
+
+  if (raw.source_type === 'technical_fixture') {
+    fail(path + '.source_type');
+  }
+
+  validateR5AssumptionStatus(
+    raw.assumption_status,
+    path + '.assumption_status'
+  );
+
+  validateR5Confidence(
+    raw.confidence,
+    path + '.confidence'
+  );
+
+  validateB3EvidenceRefs(
+    raw.evidence_refs,
+    path + '.evidence_refs'
+  );
+
+  rejectB3ShadowCurrency(raw, path);
+
+  return raw;
+}
+
+function validateAffordabilityCeiling(
+  raw,
+  path = 'affordability_ceiling'
+) {
+  validatePlainObject(raw, path);
+
+  validateAffordabilityEvidenceStatus(
+    raw.evidence_status,
+    path + '.evidence_status'
+  );
+
+  nonEmptyString(
+    raw.provenance,
+    path + '.provenance',
+    500
+  );
+
+  validateB3EvidenceRefs(
+    raw.evidence_refs,
+    path + '.evidence_refs'
+  );
+
+  rejectB3ShadowCurrency(raw, path);
+
+  if (
+    raw.evidence_status === 'unavailable'
+  ) {
+    /*
+     * Missing evidence is not zero and is not infinity.
+     */
+    if (raw.value !== null) {
+      fail(path + '.value');
+    }
+
+    if (raw.source_type !== null) {
+      fail(path + '.source_type');
+    }
+
+    if (raw.confidence !== null) {
+      fail(path + '.confidence');
+    }
+
+    return raw;
+  }
+
+  if (raw.value === null) {
+    fail(path + '.value');
+  }
+
+  validateB3NonNegativeNumber(
+    raw.value,
+    path + '.value'
+  );
+
+  validateR5SourceType(
+    raw.source_type,
+    path + '.source_type'
+  );
+
+  if (
+    !R5_B3_AFFORDABILITY_SOURCE_TYPE.has(
+      raw.source_type
+    )
+  ) {
+    fail(path + '.source_type');
+  }
+
+  validateR5Confidence(
+    raw.confidence,
+    path + '.confidence'
+  );
+
+  /*
+   * Competitor pricing is context only.
+   * It cannot alone establish validated affordability.
+   */
+  if (
+    raw.source_type ===
+      'competitor_reference' &&
+    raw.evidence_status ===
+      'validated_for_declared_scope'
+  ) {
+    fail(path + '.evidence_status');
+  }
+
+  if (
+    raw.evidence_status ===
+      'validated_for_declared_scope' &&
+    raw.evidence_refs.length === 0
+  ) {
+    fail(path + '.evidence_refs');
+  }
+
+  return raw;
+}
+
+function validateSubsidyPolicy(
+  raw,
+  path = 'subsidy_policy'
+) {
+  validatePlainObject(raw, path);
+
+  nonEmptyString(
+    raw.status,
+    path + '.status'
+  );
+
+  validateR5PricingPolicy(
+    raw.type,
+    path + '.type'
+  );
+
+  if (
+    raw.type !== 'subsidized' &&
+    raw.type !== 'cross_subsidized' &&
+    raw.type !== 'custom_documented'
+  ) {
+    fail(path + '.type');
+  }
+
+  if (typeof raw.amount_or_rule === 'number') {
+    validateB3NonNegativeNumber(
+      raw.amount_or_rule,
+      path + '.amount_or_rule'
+    );
+  } else {
+    nonEmptyString(
+      raw.amount_or_rule,
+      path + '.amount_or_rule',
+      1000
+    );
+  }
+
+  nonEmptyString(
+    raw.source_ref,
+    path + '.source_ref',
+    500
+  );
+
+  return raw;
+}
+
+function validateEconomicCorridorInput(
+  raw,
+  path = 'economic_corridor_input'
+) {
+  validatePlainObject(raw, path);
+
+  nonEmptyString(
+    raw.corridor_id,
+    path + '.corridor_id'
+  );
+
+  validateR5OfferId(
+    raw.offer_id,
+    path + '.offer_id'
+  );
+
+  nonEmptyString(
+    raw.segment_id,
+    path + '.segment_id'
+  );
+
+  validateB3Scenario(
+    raw.scenario_id,
+    path + '.scenario_id'
+  );
+
+  nonEmptyString(
+    raw.currency,
+    path + '.currency',
+    16
+  );
+
+  nonEmptyString(
+    raw.price_unit,
+    path + '.price_unit'
+  );
+
+  nonEmptyString(
+    raw.effective_date,
+    path + '.effective_date',
+    64
+  );
+
+  /*
+   * Optional TechRoom/financial-version traceability.
+   *
+   * These are opaque references only. Their presence does not
+   * make FinRoom authoritative over technical characteristics.
+   */
+  for (const key of [
+    'configuration_ref',
+    'technical_change_ref',
+    'scenario_ref',
+    'market_scope',
+    'geography'
+  ]) {
+    if (raw[key] !== undefined) {
+      nonEmptyString(
+        raw[key],
+        path + '.' + key,
+        500
+      );
+    }
+  }
+
+  validateEconomicFloor(
+    raw.economic_floor,
+    path + '.economic_floor'
+  );
+
+  validateStrategicTarget(
+    raw.strategic_target,
+    path + '.strategic_target'
+  );
+
+  validateAffordabilityCeiling(
+    raw.affordability_ceiling,
+    path + '.affordability_ceiling'
+  );
+
+  if (
+    raw.subsidy_policy !== null &&
+    raw.subsidy_policy !== undefined
+  ) {
+    validateSubsidyPolicy(
+      raw.subsidy_policy,
+      path + '.subsidy_policy'
+    );
+  }
+
+  /*
+   * Below-floor target may only exist with explicit
+   * subsidy/cross-subsidy documentation.
+   *
+   * This does not change the mathematical economic floor.
+   */
+  if (
+    raw.strategic_target.value <
+    raw.economic_floor.value
+  ) {
+    if (
+      raw.subsidy_policy === null ||
+      raw.subsidy_policy === undefined
+    ) {
+      fail(path + '.subsidy_policy');
+    }
+  }
+
+  /*
+   * Caller cannot self-declare the final corridor result.
+   * A later server-side evaluator owns that classification.
+   */
+  if (raw.status !== undefined) {
+    fail(path + '.status');
+  }
+
+  /*
+   * B3.1 does not implement FX.
+   */
+  for (const key of [
+    'fx_rate',
+    'fx_policy',
+    'currency_conversion',
+    'converted_currency'
+  ]) {
+    if (raw[key] !== undefined) {
+      fail(path + '.' + key);
+    }
+  }
+
+  validateOptionalString(
+    raw.notes,
+    path + '.notes'
+  );
+
+  return raw;
+}
+
+/* R5 B3.1 ECONOMIC CORRIDOR CONTRACT — END */
+
+
 /* R5 CONTRACT FOUNDATION — END */
 
 module.exports = {
+  R5_B3_CORRIDOR_ENUMS,
+  validateEconomicCorridorStatus,
+  validateR5PricingPolicy,
+  validateEconomicFloorCostLevel,
+  validateAffordabilityEvidenceStatus,
+  validateB3Scenario,
+  validateEconomicFloor,
+  validateStrategicTarget,
+  validateAffordabilityCeiling,
+  validateSubsidyPolicy,
+  validateEconomicCorridorInput,
   R5_REFERENCE_COST_ENUMS,
   validateR5ReferenceTechnicalRefType,
   validateR5CostCoverageStatus,
