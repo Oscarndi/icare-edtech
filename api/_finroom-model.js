@@ -6910,7 +6910,10 @@ function evaluateAffordabilityEvidence(
         raw.technical_change_ref ?? null,
 
       evidence_refs: [
-        ...ceiling.evidence_refs,
+        ...ceiling.evidence_refs
+      ],
+
+      market_context_refs: [
         ...raw.market_context_refs
       ]
     };
@@ -7003,7 +7006,10 @@ function evaluateAffordabilityEvidence(
       raw.technical_change_ref ?? null,
 
     evidence_refs: [
-      ...ceiling.evidence_refs,
+      ...ceiling.evidence_refs
+    ],
+
+    market_context_refs: [
       ...raw.market_context_refs
     ]
   };

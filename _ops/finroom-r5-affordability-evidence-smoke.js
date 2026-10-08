@@ -712,10 +712,18 @@ assert.strictEqual(
   'opaque:any-change'
 );
 
-assert(
+assert.strictEqual(
   result.evidence_refs.includes(
     'opaque:market-context:A'
-  )
+  ),
+  false
+);
+
+assert.deepStrictEqual(
+  result.market_context_refs,
+  [
+    'opaque:market-context:A'
+  ]
 );
 
 /* optional geography / tech refs */
@@ -820,3 +828,360 @@ for (const forbidden of [
 console.log(
   'FINROOM_R5_AFFORDABILITY_EVIDENCE_SMOKE=PASS'
 );
+
+
+/*
+ * ICARE_R5_B3_4_PROVENANCE_CHANNEL_SEPARATION_TESTS_V1
+ *
+ * market_context_refs are contextual only.
+ * They MUST NOT be promoted to affordability evidence and MUST NOT
+ * change evidence maturity, availability, readiness or result status.
+ *
+ * Fixtures are copied from already-valid permanent B3.4 smoke cases.
+ */
+(() => {
+  const assertProv =
+    require('node:assert/strict');
+
+  const {
+    evaluateAffordabilityEvidence:
+      evaluateAffordabilityEvidenceProv
+  } = require('../api/_finroom-model');
+
+  const capturedCases =
+[
+  {
+    "raw": {
+      "affordability_basis_id": "synthetic-affordability-basis",
+      "offer_id": "school_b2b2c",
+      "segment_id": "synthetic-segment",
+      "scenario_id": "current",
+      "currency": "XAF",
+      "unit": "currency_per_learner_month",
+      "scope_ref": "synthetic:scope:A",
+      "effective_date": "2099-01-01",
+      "geography_ref": "synthetic:geography",
+      "affordability_ceiling": {
+        "evidence_status": "unavailable",
+        "value": null,
+        "provenance": "synthetic unavailable",
+        "source_type": null,
+        "confidence": null,
+        "evidence_refs": []
+      },
+      "market_context_refs": [],
+      "methodology_ref": "synthetic:methodology",
+      "validation_protocol_ref": null,
+      "configuration_ref": "opaque:configuration:v1",
+      "technical_change_ref": "opaque:change:v1",
+      "notes": "synthetic only"
+    },
+    "status": "ceiling_unavailable",
+    "ready_for_corridor_use": false,
+    "ceiling_available": false
+  },
+  {
+    "raw": {
+      "affordability_basis_id": "synthetic-affordability-basis",
+      "offer_id": "school_b2b2c",
+      "segment_id": "synthetic-segment",
+      "scenario_id": "current",
+      "currency": "XAF",
+      "unit": "currency_per_learner_month",
+      "scope_ref": "synthetic:scope:A",
+      "effective_date": "2099-01-01",
+      "geography_ref": "synthetic:geography",
+      "affordability_ceiling": {
+        "evidence_status": "preliminary_estimate",
+        "value": 120,
+        "provenance": "synthetic B3.4 fixture",
+        "source_type": "market_reference",
+        "confidence": "low",
+        "evidence_refs": []
+      },
+      "market_context_refs": [],
+      "methodology_ref": "synthetic:methodology",
+      "validation_protocol_ref": null,
+      "configuration_ref": "opaque:configuration:v1",
+      "technical_change_ref": "opaque:change:v1",
+      "notes": "synthetic only"
+    },
+    "status": "ceiling_preliminary",
+    "ready_for_corridor_use": true,
+    "ceiling_available": true
+  },
+  {
+    "raw": {
+      "affordability_basis_id": "synthetic-affordability-basis",
+      "offer_id": "school_b2b2c",
+      "segment_id": "synthetic-segment",
+      "scenario_id": "current",
+      "currency": "XAF",
+      "unit": "currency_per_learner_month",
+      "scope_ref": "synthetic:scope:A",
+      "effective_date": "2099-01-01",
+      "geography_ref": "synthetic:geography",
+      "affordability_ceiling": {
+        "evidence_status": "to_validate",
+        "value": 110,
+        "provenance": "synthetic interview candidate",
+        "source_type": "customer_interview",
+        "confidence": "low",
+        "evidence_refs": [
+          "synthetic:interview"
+        ]
+      },
+      "market_context_refs": [],
+      "methodology_ref": "synthetic:methodology",
+      "validation_protocol_ref": null,
+      "configuration_ref": "opaque:configuration:v1",
+      "technical_change_ref": "opaque:change:v1",
+      "notes": "synthetic only"
+    },
+    "status": "ceiling_to_validate",
+    "ready_for_corridor_use": true,
+    "ceiling_available": true
+  },
+  {
+    "raw": {
+      "affordability_basis_id": "synthetic-affordability-basis",
+      "offer_id": "school_b2b2c",
+      "segment_id": "synthetic-segment",
+      "scenario_id": "current",
+      "currency": "XAF",
+      "unit": "currency_per_learner_month",
+      "scope_ref": "synthetic:scope:A",
+      "effective_date": "2099-01-01",
+      "geography_ref": "synthetic:geography",
+      "affordability_ceiling": {
+        "evidence_status": "observed",
+        "value": 115,
+        "provenance": "synthetic observation",
+        "source_type": "pilot_observation",
+        "confidence": "medium",
+        "evidence_refs": [
+          "synthetic:observation"
+        ]
+      },
+      "market_context_refs": [],
+      "methodology_ref": "synthetic:methodology",
+      "validation_protocol_ref": null,
+      "configuration_ref": "opaque:configuration:v1",
+      "technical_change_ref": "opaque:change:v1",
+      "notes": "synthetic only"
+    },
+    "status": "ceiling_observed",
+    "ready_for_corridor_use": true,
+    "ceiling_available": true
+  },
+  {
+    "raw": {
+      "affordability_basis_id": "synthetic-affordability-basis",
+      "offer_id": "school_b2b2c",
+      "segment_id": "synthetic-segment",
+      "scenario_id": "current",
+      "currency": "XAF",
+      "unit": "currency_per_learner_month",
+      "scope_ref": "synthetic:scope:A",
+      "effective_date": "2099-01-01",
+      "geography_ref": "synthetic:geography",
+      "affordability_ceiling": {
+        "evidence_status": "validated_for_declared_scope",
+        "value": 130,
+        "provenance": "synthetic validated fixture",
+        "source_type": "contract",
+        "confidence": "high",
+        "evidence_refs": [
+          "synthetic:validated:evidence"
+        ]
+      },
+      "market_context_refs": [],
+      "methodology_ref": "synthetic:methodology",
+      "validation_protocol_ref": "synthetic:validation:protocol",
+      "configuration_ref": "opaque:configuration:v1",
+      "technical_change_ref": "opaque:change:v1",
+      "notes": "synthetic only"
+    },
+    "status": "ceiling_validated_for_declared_scope",
+    "ready_for_corridor_use": true,
+    "ceiling_available": true
+  },
+  {
+    "raw": {
+      "affordability_basis_id": "synthetic-affordability-basis",
+      "offer_id": "school_b2b2c",
+      "segment_id": "synthetic-segment",
+      "scenario_id": "current",
+      "currency": "XAF",
+      "unit": "currency_per_learner_month",
+      "scope_ref": "synthetic:scope:A",
+      "effective_date": "2099-01-01",
+      "geography_ref": "synthetic:geography",
+      "affordability_ceiling": {
+        "evidence_status": "validated_for_declared_scope",
+        "value": 130,
+        "provenance": "synthetic validation without protocol",
+        "source_type": "contract",
+        "confidence": "high",
+        "evidence_refs": [
+          "synthetic:validated:evidence"
+        ]
+      },
+      "market_context_refs": [],
+      "methodology_ref": "synthetic:methodology",
+      "validation_protocol_ref": null,
+      "configuration_ref": "opaque:configuration:v1",
+      "technical_change_ref": "opaque:change:v1",
+      "notes": "synthetic only"
+    },
+    "status": "manual_review_required",
+    "ready_for_corridor_use": false,
+    "ceiling_available": true
+  }
+];
+
+  assertProv.ok(
+    capturedCases.length >= 3,
+    'Expected multiple captured B3.4 semantic cases'
+  );
+
+  for (
+    let index = 0;
+    index < capturedCases.length;
+    index += 1
+  ) {
+    const fixture =
+      capturedCases[index];
+
+    const withoutContext =
+      JSON.parse(
+        JSON.stringify(
+          fixture.raw
+        )
+      );
+
+    withoutContext.market_context_refs = [];
+
+    const withContext =
+      JSON.parse(
+        JSON.stringify(
+          fixture.raw
+        )
+      );
+
+    const contextRef =
+      'context:b3-4-provenance:' +
+      index;
+
+    withContext.market_context_refs = [
+      contextRef
+    ];
+
+    const baseline =
+      evaluateAffordabilityEvidenceProv(
+        withoutContext
+      );
+
+    const result =
+      evaluateAffordabilityEvidenceProv(
+        withContext
+      );
+
+    assertProv.deepStrictEqual(
+      result.evidence_refs,
+      [
+        ...withContext
+          .affordability_ceiling
+          .evidence_refs
+      ],
+      'Direct affordability evidence mismatch for case ' +
+        index
+    );
+
+    assertProv.deepStrictEqual(
+      result.market_context_refs,
+      [
+        contextRef
+      ],
+      'Market-context result channel mismatch for case ' +
+        index
+    );
+
+    assertProv.strictEqual(
+      result.evidence_refs.includes(
+        contextRef
+      ),
+      false,
+      'Market context leaked into affordability evidence for case ' +
+        index
+    );
+
+    /*
+     * Context alone must not upgrade or downgrade the evidence object.
+     */
+    assertProv.strictEqual(
+      result.status,
+      baseline.status,
+      'Market context changed affordability result status'
+    );
+
+    assertProv.strictEqual(
+      result.evidence_status,
+      baseline.evidence_status,
+      'Market context changed evidence maturity'
+    );
+
+    assertProv.strictEqual(
+      result.ready_for_corridor_use,
+      baseline.ready_for_corridor_use,
+      'Market context changed corridor readiness'
+    );
+
+    assertProv.strictEqual(
+      result.ceiling_available,
+      baseline.ceiling_available,
+      'Market context changed ceiling availability'
+    );
+
+    assertProv.strictEqual(
+      result.ceiling_value,
+      baseline.ceiling_value,
+      'Market context changed ceiling value'
+    );
+
+    assertProv.deepStrictEqual(
+      result.blocking_reasons,
+      baseline.blocking_reasons,
+      'Market context changed blockers'
+    );
+
+    assertProv.deepStrictEqual(
+      result.diagnostics,
+      baseline.diagnostics,
+      'Market context changed diagnostics'
+    );
+  }
+
+  const statuses =
+    capturedCases.map(
+      item => item.status
+    );
+
+  assertProv.ok(
+    statuses.includes(
+      'manual_review_required'
+    ),
+    'Manual-review affordability path not permanently covered'
+  );
+
+  assertProv.ok(
+    statuses.includes(
+      'ceiling_unavailable'
+    ),
+    'Unavailable affordability path not permanently covered'
+  );
+
+  console.log(
+    'FINROOM_R5_B3_4_PROVENANCE_CHANNEL_SEPARATION=PASS'
+  );
+})();
