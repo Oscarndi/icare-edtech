@@ -8519,6 +8519,575 @@ function evaluateFinalEconomicCorridor(
 /* R5 B3.5 FINAL ECONOMIC CORRIDOR — END */
 
 
+
+/* R5 B3.6 AUTHENTICATED ECONOMIC CORRIDOR EXPOSURE — BEGIN */
+
+const R5_B3_6_REQUEST_FIELDS = new Set([
+  'corridor_assessment_id',
+  'floor_input',
+  'target_policy_input',
+  'affordability_input',
+  'notes'
+]);
+
+function validateEconomicCorridorRequest(
+  raw,
+  path = 'economic_corridor_request'
+) {
+  validatePlainObject(raw, path);
+
+  for (const key of Object.keys(raw)) {
+    if (!R5_B3_6_REQUEST_FIELDS.has(key)) {
+      fail(path + '.' + key);
+    }
+  }
+
+  nonEmptyString(
+    raw.corridor_assessment_id,
+    path + '.corridor_assessment_id',
+    500
+  );
+
+  validatePlainObject(
+    raw.floor_input,
+    path + '.floor_input'
+  );
+
+  validatePlainObject(
+    raw.target_policy_input,
+    path + '.target_policy_input'
+  );
+
+  validatePlainObject(
+    raw.affordability_input,
+    path + '.affordability_input'
+  );
+
+  validateOptionalString(
+    raw.notes,
+    path + '.notes'
+  );
+
+  return raw;
+}
+
+function assertB36ExactDimensions(
+  raw,
+  path = 'economic_corridor_request'
+) {
+  const floor = raw.floor_input;
+  const target = raw.target_policy_input;
+  const targetValue = target.strategic_target;
+  const targetFloor = target.floor_context;
+  const affordability = raw.affordability_input;
+
+  validatePlainObject(
+    floor.actual_basis,
+    path + '.floor_input.actual_basis'
+  );
+
+  validatePlainObject(
+    targetValue,
+    path + '.target_policy_input.strategic_target'
+  );
+
+  validatePlainObject(
+    targetFloor,
+    path + '.target_policy_input.floor_context'
+  );
+
+  const exact = (left, right, dimension) => {
+    if (left !== right) {
+      fail(
+        path +
+        '.dimension_mismatch.' +
+        dimension
+      );
+    }
+  };
+
+  exact(
+    floor.offer_id,
+    target.offer_id,
+    'offer_id.floor_target'
+  );
+
+  exact(
+    target.offer_id,
+    affordability.offer_id,
+    'offer_id.target_affordability'
+  );
+
+  exact(
+    floor.segment_id,
+    target.segment_id,
+    'segment_id.floor_target'
+  );
+
+  exact(
+    target.segment_id,
+    affordability.segment_id,
+    'segment_id.target_affordability'
+  );
+
+  exact(
+    floor.scenario_id,
+    target.scenario_id,
+    'scenario_id.floor_target'
+  );
+
+  exact(
+    target.scenario_id,
+    affordability.scenario_id,
+    'scenario_id.target_affordability'
+  );
+
+  exact(
+    floor.actual_basis.currency,
+    targetValue.currency,
+    'currency.floor_target'
+  );
+
+  exact(
+    targetValue.currency,
+    affordability.currency,
+    'currency.target_affordability'
+  );
+
+  exact(
+    floor.actual_basis.unit,
+    targetValue.unit,
+    'unit.floor_target'
+  );
+
+  exact(
+    targetValue.unit,
+    affordability.unit,
+    'unit.target_affordability'
+  );
+
+  exact(
+    floor.actual_basis.scope_ref,
+    targetValue.scope_ref,
+    'scope_ref.floor_target'
+  );
+
+  exact(
+    targetValue.scope_ref,
+    affordability.scope_ref,
+    'scope_ref.target_affordability'
+  );
+
+  exact(
+    floor.actual_basis.effective_date,
+    targetValue.effective_date,
+    'effective_date.floor_target'
+  );
+
+  exact(
+    targetValue.effective_date,
+    affordability.effective_date,
+    'effective_date.target_affordability'
+  );
+
+  exact(
+    target.offer_id,
+    targetFloor.offer_id,
+    'offer_id.target_floor_context'
+  );
+
+  exact(
+    target.segment_id,
+    targetFloor.segment_id,
+    'segment_id.target_floor_context'
+  );
+
+  exact(
+    target.scenario_id,
+    targetFloor.scenario_id,
+    'scenario_id.target_floor_context'
+  );
+
+  exact(
+    targetValue.currency,
+    targetFloor.currency,
+    'currency.target_floor_context'
+  );
+
+  exact(
+    targetValue.unit,
+    targetFloor.unit,
+    'unit.target_floor_context'
+  );
+
+  exact(
+    targetValue.scope_ref,
+    targetFloor.scope_ref,
+    'scope_ref.target_floor_context'
+  );
+}
+
+function projectB36BlockingReasons(items) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  /*
+   * B3.6 intentionally does not forward evaluator-owned
+   * status/code/message strings. They may contain internal
+   * implementation vocabulary or sensitive context.
+   *
+   * Client exposure is deliberately bounded to the fact that
+   * a blocking condition exists. The authoritative analytical
+   * outcome remains the top-level corridor status.
+   */
+  return items
+    .filter(
+      item =>
+        item &&
+        typeof item === 'object'
+    )
+    .map(
+      () => ({
+        code:
+          'corridor_blocking_condition'
+      })
+    );
+}
+
+function projectB36Diagnostics(items) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  const safeSeverities =
+    new Set([
+      'info',
+      'warning',
+      'error'
+    ]);
+
+  /*
+   * Never expose raw evaluator messages or arbitrary diagnostic
+   * codes through the authenticated client projection.
+   */
+  return items
+    .filter(
+      item =>
+        item &&
+        typeof item === 'object'
+    )
+    .map(
+      item => ({
+        severity:
+          safeSeverities.has(
+            item.severity
+          )
+            ? item.severity
+            : 'unknown',
+
+        code:
+          'corridor_diagnostic'
+      })
+    );
+}
+
+function projectEconomicCorridorForClient(corridor) {
+  validatePlainObject(
+    corridor,
+    'economic_corridor_result'
+  );
+
+  const dimensions =
+    corridor.comparison_dimensions || {};
+
+  const floor =
+    corridor.economic_floor || {};
+
+  const target =
+    corridor.strategic_target || {};
+
+  const affordability =
+    corridor.affordability_ceiling || {};
+
+  return {
+    kind:
+      'economic_corridor',
+
+    corridor_assessment_id:
+      corridor.corridor_assessment_id,
+
+    status:
+      corridor.status,
+
+    dimensions: {
+      offer_id:
+        dimensions.offer_id,
+
+      segment_id:
+        dimensions.segment_id,
+
+      scenario_id:
+        dimensions.scenario_id,
+
+      currency:
+        dimensions.currency,
+
+      unit:
+        dimensions.unit,
+
+      scope_ref:
+        dimensions.scope_ref,
+
+      effective_date:
+        dimensions.effective_date
+    },
+
+    economic_floor: {
+      value:
+        floor.value,
+
+      status:
+        floor.eligibility_status,
+
+      cost_level:
+        floor.requested_cost_level
+    },
+
+    strategic_target: {
+      value:
+        target.value,
+
+      status:
+        target.target_policy_status,
+
+      pricing_policy:
+        target.pricing_policy
+    },
+
+    affordability_ceiling: {
+      value:
+        affordability.value,
+
+      status:
+        affordability.status,
+
+      evidence_status:
+        affordability.evidence_status,
+
+      available:
+        affordability.available,
+
+      usable:
+        affordability.usable
+    },
+
+    floor_gap:
+      corridor.floor_gap,
+
+    headroom:
+      corridor.affordability_headroom,
+
+    subsidy_required:
+      corridor.subsidy_required,
+
+    required_support_gap:
+      corridor.required_support_gap,
+
+    blocking_reasons:
+      projectB36BlockingReasons(
+        corridor.blocking_reasons
+      ),
+
+    diagnostics:
+      projectB36Diagnostics(
+        corridor.diagnostics
+      ),
+
+    semantics: {
+      /*
+       * The server is authoritative for validation,
+       * orchestration and corridor evaluation.
+       *
+       * The monetary floor value itself is currently a
+       * declared analytical input carried by B3.3
+       * floor_context.value. B3.2 remains authoritative
+       * for floor eligibility/basis/cost-level metadata.
+       */
+      evaluation_server_authoritative:
+        true,
+
+      floor_metadata_server_authoritative:
+        true,
+
+      floor_value_source:
+        'declared_input',
+
+      floor_value_server_sourced:
+        false,
+
+      required_support_gap_is_diagnostic:
+        true,
+
+      required_support_gap_is_approved_support:
+        false,
+
+      affordability_is_not_wtp_validation:
+        true,
+
+      corridor_is_not_demand_validation:
+        true,
+
+      corridor_is_not_profitability_proof:
+        true,
+
+      corridor_is_not_market_acceptance:
+        true
+    }
+  };
+}
+
+function evaluateEconomicCorridorRequest(
+  raw,
+  path = 'economic_corridor_request'
+) {
+  validateEconomicCorridorRequest(
+    raw,
+    path
+  );
+
+  assertB36ExactDimensions(
+    raw,
+    path
+  );
+
+  const floorResult =
+    evaluateFloorEligibility(
+      raw.floor_input,
+      path + '.floor_input'
+    );
+
+  const targetInput = {
+    ...raw.target_policy_input,
+
+    strategic_target: {
+      ...raw.target_policy_input
+        .strategic_target
+    },
+
+    floor_context: {
+      ...raw.target_policy_input
+        .floor_context,
+
+      floor_basis_ref:
+        floorResult.floor_basis_id,
+
+      floor_eligibility_status:
+        floorResult.eligibility_status,
+
+      floor_cost_level:
+        floorResult.requested_cost_level
+    },
+
+    support_policy:
+      raw.target_policy_input
+        .support_policy === null ||
+      raw.target_policy_input
+        .support_policy === undefined
+        ? null
+        : {
+            ...raw.target_policy_input
+              .support_policy,
+
+            evidence_refs: [
+              ...raw.target_policy_input
+                .support_policy
+                .evidence_refs
+            ]
+          },
+
+    market_context_refs: [
+      ...raw.target_policy_input
+        .market_context_refs
+    ]
+  };
+
+  const targetResult =
+    evaluateTargetPolicy(
+      targetInput,
+      path + '.target_policy_input'
+    );
+
+  const affordabilityResult =
+    evaluateAffordabilityEvidence(
+      raw.affordability_input,
+      path + '.affordability_input'
+    );
+
+  const finalInput = {
+    corridor_assessment_id:
+      raw.corridor_assessment_id,
+
+    floor_basis_id:
+      floorResult.floor_basis_id,
+
+    target_policy_id:
+      targetResult.target_policy_id,
+
+    affordability_basis_id:
+      affordabilityResult
+        .affordability_basis_id,
+
+    offer_id:
+      targetResult.offer_id,
+
+    segment_id:
+      targetResult.segment_id,
+
+    scenario_id:
+      targetResult.scenario_id,
+
+    currency:
+      targetResult.currency,
+
+    unit:
+      targetResult.unit,
+
+    scope_ref:
+      targetResult.scope_ref,
+
+    effective_date:
+      targetResult.effective_date,
+
+    floor_result:
+      floorResult,
+
+    target_policy_result:
+      targetResult,
+
+    affordability_result:
+      affordabilityResult,
+
+    support_policy:
+      targetInput.support_policy,
+
+    notes:
+      raw.notes ?? null
+  };
+
+  const finalCorridor =
+    evaluateFinalEconomicCorridor(
+      finalInput,
+      path + '.final_corridor'
+    );
+
+  return projectEconomicCorridorForClient(
+    finalCorridor
+  );
+}
+
+/* R5 B3.6 AUTHENTICATED ECONOMIC CORRIDOR EXPOSURE — END */
+
 /* R5 PRICING DECISION GOVERNANCE — BEGIN */
 
 /*
@@ -9437,6 +10006,11 @@ function evaluatePricingGovernanceDecision(
 /* R5 CONTRACT FOUNDATION — END */
 
 module.exports = {
+
+  validateEconomicCorridorRequest,
+  projectEconomicCorridorForClient,
+  evaluateEconomicCorridorRequest,
+
   R5_PRICING_GOVERNANCE_ENUMS,
   validatePricingGovernanceApproval,
   validatePricingGovernanceSupersession,

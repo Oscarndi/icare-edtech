@@ -10,21 +10,32 @@ const {
   computeInteractiveSimulation,
   computeFinancialTrajectory,
   computeSensitivityAnalysis,
-  computeBreakEvenGraph
+  computeBreakEvenGraph,
+  evaluateEconomicCorridorRequest
 } = require('./_finroom-model');
 
 const ALLOWED_TOP_LEVEL_FIELDS = new Set([
   'operation',
   'overrides',
   'options',
-  'scenarios'
+  'scenarios',
+  'corridor'
 ]);
 
 const OPERATIONS = new Set([
   'single_simulation',
   'trajectory',
   'sensitivity',
-  'break_even_graph'
+  'break_even_graph',
+  'economic_corridor'
+]);
+
+const ECONOMIC_CORRIDOR_FIELDS = new Set([
+  'corridor_assessment_id',
+  'floor_input',
+  'target_policy_input',
+  'affordability_input',
+  'notes'
 ]);
 
 const MAX_REQUEST_BODY_BYTES = 64 * 1024;
@@ -253,6 +264,68 @@ function validateEnvelope(body) {
     throw new Error('unexpected_operation_field');
   }
 
+  if (
+    body.operation === 'economic_corridor'
+  ) {
+    if (
+      !Object.prototype.hasOwnProperty.call(
+        body,
+        'corridor'
+      ) ||
+      body.corridor === null ||
+      typeof body.corridor !== 'object' ||
+      Array.isArray(body.corridor)
+    ) {
+      throw new Error(
+        'economic_corridor_payload_required'
+      );
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(
+        body,
+        'overrides'
+      ) ||
+      Object.prototype.hasOwnProperty.call(
+        body,
+        'options'
+      ) ||
+      Object.prototype.hasOwnProperty.call(
+        body,
+        'scenarios'
+      )
+    ) {
+      throw new Error(
+        'unexpected_operation_field'
+      );
+    }
+
+    for (
+      const key of Object.keys(
+        body.corridor
+      )
+    ) {
+      if (
+        !ECONOMIC_CORRIDOR_FIELDS.has(
+          key
+        )
+      ) {
+        throw new Error(
+          'unknown_request_field'
+        );
+      }
+    }
+  } else if (
+    Object.prototype.hasOwnProperty.call(
+      body,
+      'corridor'
+    )
+  ) {
+    throw new Error(
+      'unexpected_operation_field'
+    );
+  }
+
   return body;
 }
 
@@ -299,6 +372,11 @@ function executeOperation(model, request) {
         model,
         request.overrides || {},
         request.options || {}
+      );
+
+    case 'economic_corridor':
+      return evaluateEconomicCorridorRequest(
+        request.corridor
       );
 
     default:
