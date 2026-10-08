@@ -6446,7 +6446,10 @@ function evaluateTargetPolicy(
           raw.support_policy
             ? raw.support_policy.evidence_refs
             : []
-        ),
+        )
+      ],
+
+      market_context_refs: [
         ...raw.market_context_refs
       ]
     };
@@ -6501,7 +6504,10 @@ function evaluateTargetPolicy(
       evidence_refs: [
         ...raw.strategic_target.evidence_refs,
         ...raw.floor_context.evidence_refs,
-        ...raw.support_policy.evidence_refs,
+        ...raw.support_policy.evidence_refs
+      ],
+
+      market_context_refs: [
         ...raw.market_context_refs
       ]
     };
@@ -6559,7 +6565,10 @@ function evaluateTargetPolicy(
         raw.support_policy
           ? raw.support_policy.evidence_refs
           : []
-      ),
+      )
+    ],
+
+    market_context_refs: [
       ...raw.market_context_refs
     ]
   };

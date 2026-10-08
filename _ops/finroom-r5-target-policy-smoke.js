@@ -911,3 +911,287 @@ for (const pricing_policy of [
 console.log(
   'FINROOM_R5_TARGET_POLICY_SMOKE=PASS'
 );
+
+
+/*
+ * ICARE_R5_B3_3_PROVENANCE_CHANNEL_SEPARATION_TESTS_V2
+ *
+ * market_context_refs are contextual references and MUST NOT be
+ * promoted to target/floor/support evidence.
+ *
+ * Fixtures below are copied from already-valid permanent B3.3 smoke
+ * cases at repair time; no new economic fixture vocabulary is invented.
+ */
+(() => {
+  const assertProv =
+    require('node:assert/strict');
+
+  const {
+    evaluateTargetPolicy: evaluateTargetPolicyProv
+  } = require('../api/_finroom-model');
+
+  const capturedCases =
+[
+  {
+    "raw": {
+      "target_policy_id": "synthetic-target-policy",
+      "offer_id": "school_b2b2c",
+      "segment_id": "synthetic-segment",
+      "scenario_id": "current",
+      "strategic_target": {
+        "value": 120,
+        "currency": "XAF",
+        "unit": "currency_per_learner_month",
+        "scope_ref": "synthetic:scope:A",
+        "effective_date": "2099-01-01",
+        "pricing_policy": "market_alignment",
+        "rationale": "Synthetic target-policy test only.",
+        "provenance": "synthetic B3.3 fixture",
+        "source_type": "management_target",
+        "assumption_status": "current_assumption",
+        "confidence": "low",
+        "evidence_refs": []
+      },
+      "floor_context": {
+        "value": 100,
+        "currency": "XAF",
+        "unit": "currency_per_learner_month",
+        "scope_ref": "synthetic:scope:A",
+        "floor_cost_level": "full_economic_cost",
+        "floor_basis_ref": "synthetic:floor:basis",
+        "floor_eligibility_status": "eligible_final",
+        "offer_id": "school_b2b2c",
+        "segment_id": "synthetic-segment",
+        "scenario_id": "current",
+        "evidence_refs": []
+      },
+      "support_policy": null,
+      "market_context_refs": [],
+      "decision_status": "proposed",
+      "configuration_ref": "opaque:configuration:v1",
+      "technical_change_ref": "opaque:change:v1",
+      "notes": "synthetic only"
+    },
+    "status": "ready_at_or_above_floor"
+  },
+  {
+    "raw": {
+      "target_policy_id": "synthetic-target-policy",
+      "offer_id": "school_b2b2c",
+      "segment_id": "synthetic-segment",
+      "scenario_id": "current",
+      "strategic_target": {
+        "value": 70,
+        "currency": "XAF",
+        "unit": "currency_per_learner_month",
+        "scope_ref": "synthetic:scope:A",
+        "effective_date": "2099-01-01",
+        "pricing_policy": "subsidized",
+        "rationale": "Synthetic target-policy test only.",
+        "provenance": "synthetic B3.3 fixture",
+        "source_type": "management_target",
+        "assumption_status": "current_assumption",
+        "confidence": "low",
+        "evidence_refs": []
+      },
+      "floor_context": {
+        "value": 100,
+        "currency": "XAF",
+        "unit": "currency_per_learner_month",
+        "scope_ref": "synthetic:scope:A",
+        "floor_cost_level": "full_economic_cost",
+        "floor_basis_ref": "synthetic:floor:basis",
+        "floor_eligibility_status": "eligible_final",
+        "offer_id": "school_b2b2c",
+        "segment_id": "synthetic-segment",
+        "scenario_id": "current",
+        "evidence_refs": []
+      },
+      "support_policy": {
+        "status": "approved",
+        "type": "subsidy",
+        "amount_or_rule": "Synthetic rule covers declared gap.",
+        "source_ref": "synthetic:support:source",
+        "evidence_refs": [
+          "synthetic:support:evidence"
+        ]
+      },
+      "market_context_refs": [],
+      "decision_status": "proposed",
+      "configuration_ref": "opaque:configuration:v1",
+      "technical_change_ref": "opaque:change:v1",
+      "notes": "synthetic only"
+    },
+    "status": "ready_below_floor_with_support"
+  },
+  {
+    "raw": {
+      "target_policy_id": "synthetic-target-policy",
+      "offer_id": "school_b2b2c",
+      "segment_id": "synthetic-segment",
+      "scenario_id": "current",
+      "strategic_target": {
+        "value": 120,
+        "currency": "USD",
+        "unit": "currency_per_learner_month",
+        "scope_ref": "synthetic:scope:A",
+        "effective_date": "2099-01-01",
+        "pricing_policy": "market_alignment",
+        "rationale": "Synthetic target-policy test only.",
+        "provenance": "synthetic B3.3 fixture",
+        "source_type": "management_target",
+        "assumption_status": "current_assumption",
+        "confidence": "low",
+        "evidence_refs": []
+      },
+      "floor_context": {
+        "value": 100,
+        "currency": "XAF",
+        "unit": "currency_per_learner_month",
+        "scope_ref": "synthetic:scope:A",
+        "floor_cost_level": "full_economic_cost",
+        "floor_basis_ref": "synthetic:floor:basis",
+        "floor_eligibility_status": "eligible_final",
+        "offer_id": "school_b2b2c",
+        "segment_id": "synthetic-segment",
+        "scenario_id": "current",
+        "evidence_refs": []
+      },
+      "support_policy": null,
+      "market_context_refs": [],
+      "decision_status": "proposed",
+      "configuration_ref": "opaque:configuration:v1",
+      "technical_change_ref": "opaque:change:v1",
+      "notes": "synthetic only"
+    },
+    "status": "currency_mismatch"
+  }
+];
+
+  assertProv.strictEqual(
+    capturedCases.length,
+    3,
+    'Expected three captured B3.3 semantic cases'
+  );
+
+  for (
+    let index = 0;
+    index < capturedCases.length;
+    index += 1
+  ) {
+    const fixture =
+      capturedCases[index];
+
+    const withoutContext =
+      JSON.parse(
+        JSON.stringify(
+          fixture.raw
+        )
+      );
+
+    withoutContext.market_context_refs = [];
+
+    const withContext =
+      JSON.parse(
+        JSON.stringify(
+          fixture.raw
+        )
+      );
+
+    const contextRef =
+      'context:provenance-separation:' +
+      index;
+
+    withContext.market_context_refs = [
+      contextRef
+    ];
+
+    const baseline =
+      evaluateTargetPolicyProv(
+        withoutContext
+      );
+
+    const result =
+      evaluateTargetPolicyProv(
+        withContext
+      );
+
+    const expectedEvidence = [
+      ...withContext
+        .strategic_target
+        .evidence_refs,
+
+      ...withContext
+        .floor_context
+        .evidence_refs,
+
+      ...(
+        withContext.support_policy
+          ? withContext
+              .support_policy
+              .evidence_refs
+          : []
+      )
+    ];
+
+    assertProv.deepStrictEqual(
+      result.evidence_refs,
+      expectedEvidence,
+      'Direct evidence channel mismatch for case ' +
+        index
+    );
+
+    assertProv.deepStrictEqual(
+      result.market_context_refs,
+      [contextRef],
+      'Market context channel mismatch for case ' +
+        index
+    );
+
+    assertProv.strictEqual(
+      result.evidence_refs.includes(
+        contextRef
+      ),
+      false,
+      'Market context leaked into evidence_refs for case ' +
+        index
+    );
+
+    /*
+     * Context alone must not change economic classification.
+     */
+    assertProv.strictEqual(
+      result.status,
+      baseline.status,
+      'Market context changed status'
+    );
+
+    assertProv.strictEqual(
+      result.ready_for_final_target_policy,
+      baseline.ready_for_final_target_policy,
+      'Market context changed final-target readiness'
+    );
+
+    assertProv.strictEqual(
+      result.relation_to_floor,
+      baseline.relation_to_floor,
+      'Market context changed target/floor relation'
+    );
+
+    assertProv.strictEqual(
+      result.subsidy_required,
+      baseline.subsidy_required,
+      'Market context changed subsidy requirement'
+    );
+
+    assertProv.strictEqual(
+      result.required_support_gap,
+      baseline.required_support_gap,
+      'Market context changed support gap'
+    );
+  }
+
+  console.log(
+    'FINROOM_R5_B3_3_PROVENANCE_CHANNEL_SEPARATION=PASS'
+  );
+})();
