@@ -3701,9 +3701,674 @@ function validateCostAllocation(
   return raw;
 }
 
+
+/* R5 B2 REFERENCE-ONLY COST RECONCILIATION — BEGIN
+ *
+ * Reference-only refinement.
+ *
+ * IMPORTANT:
+ * - technical_ref is opaque external identity;
+ * - no TechRoom hierarchy is asserted here;
+ * - no real/private ICARE monetary values are defined here;
+ * - no pricing arithmetic is implemented here;
+ * - B1 validators remain backward-compatible.
+ */
+
+const R5_REFERENCE_TECHNICAL_REF_TYPE = new Set([
+  'opaque_reference',
+  'product',
+  'configuration',
+  'module',
+  'submodule',
+  'component',
+  'assembly',
+  'device',
+  'service',
+  'other_declared'
+]);
+
+const R5_COST_COVERAGE_STATUS = new Set([
+  'included',
+  'excluded',
+  'unknown'
+]);
+
+const R5_COST_COVERAGE_KEYS = Object.freeze([
+  'material',
+  'component',
+  'fabrication',
+  'assembly',
+  'integration',
+  'provisioning',
+  'freight',
+  'customs',
+  'tax',
+  'installation',
+  'deployment',
+  'packaging',
+  'testing',
+  'warranty'
+]);
+
+const R5_REFERENCE_COST_ENUMS = Object.freeze({
+  technical_ref_type:
+    Object.freeze([...R5_REFERENCE_TECHNICAL_REF_TYPE]),
+  cost_coverage_status:
+    Object.freeze([...R5_COST_COVERAGE_STATUS]),
+  cost_coverage_keys:
+    R5_COST_COVERAGE_KEYS
+});
+
+function validateReferenceEnum(
+  value,
+  allowed,
+  path
+) {
+  nonEmptyString(value, path);
+
+  if (!allowed.has(value)) {
+    fail(path);
+  }
+
+  return value;
+}
+
+function validateR5ReferenceTechnicalRefType(
+  value,
+  path = 'technical_ref_type'
+) {
+  return validateReferenceEnum(
+    value,
+    R5_REFERENCE_TECHNICAL_REF_TYPE,
+    path
+  );
+}
+
+function validateR5CostCoverageStatus(
+  value,
+  path = 'cost_coverage_status'
+) {
+  return validateReferenceEnum(
+    value,
+    R5_COST_COVERAGE_STATUS,
+    path
+  );
+}
+
+function validateReferenceCostCoverage(
+  raw,
+  path = 'cost_coverage'
+) {
+  validatePlainObject(raw, path);
+
+  for (const key of R5_COST_COVERAGE_KEYS) {
+    validateR5CostCoverageStatus(
+      raw[key],
+      path + '.' + key
+    );
+  }
+
+  if (!Array.isArray(raw.other_declared)) {
+    fail(path + '.other_declared');
+  }
+
+  raw.other_declared.forEach(
+    (entry, index) => {
+      const itemPath =
+        path +
+        '.other_declared[' +
+        index +
+        ']';
+
+      validatePlainObject(
+        entry,
+        itemPath
+      );
+
+      nonEmptyString(
+        entry.label,
+        itemPath + '.label',
+        160
+      );
+
+      validateR5CostCoverageStatus(
+        entry.status,
+        itemPath + '.status'
+      );
+    }
+  );
+
+  return raw;
+}
+
+function validateReferenceTechnicalCostEvidence(
+  raw,
+  path = 'reference_technical_cost_evidence'
+) {
+  validatePlainObject(raw, path);
+
+  nonEmptyString(
+    raw.cost_item_id,
+    path + '.cost_item_id',
+    160
+  );
+
+  nonEmptyString(
+    raw.technical_ref,
+    path + '.technical_ref',
+    500
+  );
+
+  validateR5ReferenceTechnicalRefType(
+    raw.technical_ref_type,
+    path + '.technical_ref_type'
+  );
+
+  nonEmptyString(
+    raw.technical_scope,
+    path + '.technical_scope',
+    160
+  );
+
+  nonEmptyString(
+    raw.technical_label,
+    path + '.technical_label',
+    240
+  );
+
+  finiteNumber(
+    raw.quantity,
+    path + '.quantity',
+    { min: 0 }
+  );
+
+  nonEmptyString(
+    raw.unit_of_measure,
+    path + '.unit_of_measure',
+    80
+  );
+
+  validateR5ProcurementMode(
+    raw.procurement_or_fabrication_mode,
+    path +
+      '.procurement_or_fabrication_mode'
+  );
+
+  validateR5TechnicalCostOrigin(
+    raw.cost_origin,
+    path + '.cost_origin'
+  );
+
+  validateR5CostClass(
+    raw.cost_class,
+    path + '.cost_class'
+  );
+
+  validateCanonicalMonetaryValue(
+    raw.unit_cost,
+    path + '.unit_cost'
+  );
+
+  validateReferenceCostCoverage(
+    raw.cost_coverage,
+    path + '.cost_coverage'
+  );
+
+  nonEmptyString(
+    raw.provenance,
+    path + '.provenance',
+    500
+  );
+
+  validateR5SourceType(
+    raw.source_type,
+    path + '.source_type'
+  );
+
+  validateR5AssumptionStatus(
+    raw.assumption_status,
+    path + '.assumption_status'
+  );
+
+  nonEmptyString(
+    raw.effective_date,
+    path + '.effective_date',
+    64
+  );
+
+  validateR5Confidence(
+    raw.confidence,
+    path + '.confidence'
+  );
+
+  if (!Array.isArray(raw.evidence_refs)) {
+    fail(path + '.evidence_refs');
+  }
+
+  raw.evidence_refs.forEach(
+    (ref, index) => {
+      nonEmptyString(
+        ref,
+        path +
+          '.evidence_refs[' +
+          index +
+          ']',
+        500
+      );
+    }
+  );
+
+  nonEmptyString(
+    raw.legacy_cost_ref,
+    path + '.legacy_cost_ref',
+    500
+  );
+
+  validateR5LegacyReconciliationClass(
+    raw.reconciliation_classification,
+    path +
+      '.reconciliation_classification'
+  );
+
+  validateR5LegacyReconciliationAction(
+    raw.reconciliation_action,
+    path + '.reconciliation_action'
+  );
+
+  validateR5TechnicalCostCompleteness(
+    raw.completeness_status,
+    path + '.completeness_status'
+  );
+
+  nonEmptyString(
+    raw.notes,
+    path + '.notes',
+    1000
+  );
+
+  if (
+    raw.reconciliation_classification ===
+      'not_in_legacy' &&
+    raw.legacy_cost_ref !== 'legacy:none'
+  ) {
+    fail(path + '.legacy_cost_ref');
+  }
+
+  if (
+    raw.reconciliation_classification ===
+      'not_in_legacy' &&
+    raw.reconciliation_action !==
+      'include_new'
+  ) {
+    fail(path + '.reconciliation_action');
+  }
+
+  if (
+    raw.reconciliation_classification ===
+      'fully_in_legacy' &&
+    ![
+      'exclude_duplicate',
+      'retain_legacy_only'
+    ].includes(raw.reconciliation_action)
+  ) {
+    fail(path + '.reconciliation_action');
+  }
+
+  if (
+    raw.reconciliation_classification ===
+      'partially_in_legacy' &&
+    ![
+      'include_incremental_only',
+      'manual_review_required'
+    ].includes(raw.reconciliation_action)
+  ) {
+    fail(path + '.reconciliation_action');
+  }
+
+  if (
+    raw.reconciliation_classification ===
+      'unknown_requires_validation' &&
+    raw.reconciliation_action !==
+      'manual_review_required'
+  ) {
+    fail(path + '.reconciliation_action');
+  }
+
+  for (
+    const [key, maxLength] of [
+      ['scope_version', 160],
+      ['parent_cost_item_ref', 160],
+      ['overlap_group_ref', 160],
+      ['supplier_or_source_ref', 500]
+    ]
+  ) {
+    if (raw[key] !== undefined) {
+      nonEmptyString(
+        raw[key],
+        path + '.' + key,
+        maxLength
+      );
+    }
+  }
+
+  if (
+    raw.incremental_to_parent !==
+    undefined
+  ) {
+    validateBoolean(
+      raw.incremental_to_parent,
+      path + '.incremental_to_parent'
+    );
+  }
+
+  if (
+    raw.supplemental_charge_type !==
+    undefined
+  ) {
+    nonEmptyString(
+      raw.supplemental_charge_type,
+      path +
+        '.supplemental_charge_type',
+      80
+    );
+
+    if (
+      !R5_COST_COVERAGE_KEYS.includes(
+        raw.supplemental_charge_type
+      )
+    ) {
+      fail(
+        path +
+          '.supplemental_charge_type'
+      );
+    }
+  }
+
+  if (
+    raw.public_exposure !==
+    undefined
+  ) {
+    validateBoolean(
+      raw.public_exposure,
+      path + '.public_exposure'
+    );
+  }
+
+  if (
+    raw.source_type ===
+      'technical_fixture' &&
+    raw.public_exposure === true
+  ) {
+    fail(path + '.public_exposure');
+  }
+
+  return raw;
+}
+
+function referenceTechnicalCostIdentityKey(
+  raw
+) {
+  /*
+   * Descriptive technical identity only.
+   *
+   * IMPORTANT:
+   * technical identity is NOT economic-line identity.
+   * Multiple legitimate economic cost lines may concern the
+   * same technical reference/date/scope.
+   */
+  return [
+    raw.technical_ref,
+    raw.effective_date,
+    raw.technical_scope,
+    raw.scope_version || ''
+  ].join('|');
+}
+
+function referenceCostCoverageHasUnknown(
+  raw
+) {
+  for (const key of R5_COST_COVERAGE_KEYS) {
+    if (raw[key] === 'unknown') {
+      return true;
+    }
+  }
+
+  for (const entry of raw.other_declared) {
+    if (entry.status === 'unknown') {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function validateReferenceTechnicalCostEvidenceSet(
+  raw,
+  options = {},
+  path = 'reference_technical_cost_evidence_set'
+) {
+  if (!Array.isArray(raw)) {
+    fail(path);
+  }
+
+  validatePlainObject(
+    options,
+    path + '.options'
+  );
+
+  const finalAggregate =
+    options.final_aggregate === true;
+
+  const byId = new Map();
+
+  raw.forEach(
+    (item, index) => {
+      const itemPath =
+        path +
+        '[' +
+        index +
+        ']';
+
+      validateReferenceTechnicalCostEvidence(
+        item,
+        itemPath
+      );
+
+      if (
+        byId.has(item.cost_item_id)
+      ) {
+        fail(
+          itemPath + '.cost_item_id'
+        );
+      }
+
+      byId.set(
+        item.cost_item_id,
+        item
+      );
+
+      if (
+        finalAggregate &&
+        item.reconciliation_classification ===
+          'unknown_requires_validation'
+      ) {
+        fail(
+          itemPath +
+            '.reconciliation_classification'
+        );
+      }
+
+      if (
+        finalAggregate &&
+        item.reconciliation_action ===
+          'manual_review_required'
+      ) {
+        fail(
+          itemPath +
+            '.reconciliation_action'
+        );
+      }
+
+      const contributesToFinalAggregate =
+        [
+          'include_new',
+          'include_incremental_only'
+        ].includes(
+          item.reconciliation_action
+        );
+
+      if (
+        finalAggregate &&
+        contributesToFinalAggregate &&
+        item.completeness_status !==
+          'complete_for_declared_scope'
+      ) {
+        fail(
+          itemPath +
+            '.completeness_status'
+        );
+      }
+
+      if (
+        finalAggregate &&
+        contributesToFinalAggregate &&
+        referenceCostCoverageHasUnknown(
+          item.cost_coverage
+        )
+      ) {
+        fail(
+          itemPath +
+            '.cost_coverage'
+        );
+      }
+
+      if (
+        finalAggregate &&
+        item.source_type ===
+          'technical_fixture'
+      ) {
+        fail(
+          itemPath + '.source_type'
+        );
+      }
+    }
+  );
+
+  raw.forEach(
+    (item, index) => {
+      if (
+        item.parent_cost_item_ref ===
+        undefined
+      ) {
+        return;
+      }
+
+      const parent =
+        byId.get(
+          item.parent_cost_item_ref
+        );
+
+      if (!parent) {
+        return;
+      }
+
+      if (
+        item.incremental_to_parent !==
+        true
+      ) {
+        fail(
+          path +
+            '[' +
+            index +
+            '].parent_cost_item_ref'
+        );
+      }
+    }
+  );
+
+  const byOverlapGroup = new Map();
+
+  raw.forEach(
+    item => {
+      if (
+        item.overlap_group_ref ===
+        undefined
+      ) {
+        return;
+      }
+
+      if (
+        !byOverlapGroup.has(
+          item.overlap_group_ref
+        )
+      ) {
+        byOverlapGroup.set(
+          item.overlap_group_ref,
+          []
+        );
+      }
+
+      byOverlapGroup
+        .get(item.overlap_group_ref)
+        .push(item);
+    }
+  );
+
+  for (
+    const groupItems of
+      byOverlapGroup.values()
+  ) {
+    for (
+      const supplemental of
+        groupItems
+    ) {
+      const chargeType =
+        supplemental
+          .supplemental_charge_type;
+
+      if (!chargeType) {
+        continue;
+      }
+
+      for (
+        const candidate of
+          groupItems
+      ) {
+        if (
+          candidate === supplemental
+        ) {
+          continue;
+        }
+
+        if (
+          candidate.cost_coverage[
+            chargeType
+          ] === 'included'
+        ) {
+          fail(
+            path +
+              '.overlap_group_ref'
+          );
+        }
+      }
+    }
+  }
+
+  return raw;
+}
+
+/* R5 B2 REFERENCE-ONLY COST RECONCILIATION — END */
+
 /* R5 CONTRACT FOUNDATION — END */
 
 module.exports = {
+  R5_REFERENCE_COST_ENUMS,
+  validateR5ReferenceTechnicalRefType,
+  validateR5CostCoverageStatus,
+  validateReferenceCostCoverage,
+  validateReferenceTechnicalCostEvidence,
+  referenceTechnicalCostIdentityKey,
+  validateReferenceTechnicalCostEvidenceSet,
   R5_CONTRACT_ENUMS,
   validateCanonicalMonetaryValue,
   validateR5AssumptionStatus,
