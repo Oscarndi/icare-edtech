@@ -5001,10 +5001,690 @@ function validateEconomicCorridorInput(
 
 /* R5 B3.1 ECONOMIC CORRIDOR CONTRACT — END */
 
+/* R5 B3.2 FLOOR ELIGIBILITY — BEGIN
+ *
+ * Determines whether an already supplied / calculated cost basis
+ * is eligible to serve as:
+ * - a final floor for a declared economic purpose; or
+ * - a labelled analytical lower bound.
+ *
+ * This block DOES NOT:
+ * - aggregate real ICARE costs;
+ * - retrieve suppliers;
+ * - expose endpoints/UI;
+ * - synchronize TechRoom automatically;
+ * - perform FX or unit conversion;
+ * - calculate strategic target or affordability;
+ * - recommend a price;
+ * - implement B3.5 corridor classification.
+ */
+
+const R5_FLOOR_ELIGIBILITY_STATUS = new Set([
+  'eligible_final',
+  'eligible_lower_bound',
+  'incomplete_required_costs',
+  'unresolved_reconciliation',
+  'unresolved_cost_coverage',
+  'missing_allocation_basis',
+  'scope_mismatch',
+  'unit_mismatch',
+  'currency_mismatch',
+  'effective_date_missing',
+  'conflicting_evidence',
+  'manual_review_required'
+]);
+
+const R5_FLOOR_PURPOSE = new Set([
+  'direct_technical_analysis',
+  'deployed_asset_analysis',
+  'service_sustainability',
+  'full_economic_sustainability'
+]);
+
+const R5_FLOOR_RECONCILIATION_STATUS = new Set([
+  'resolved',
+  'not_required',
+  'unresolved',
+  'conflicting'
+]);
+
+const R5_FLOOR_COVERAGE_STATUS = new Set([
+  'resolved',
+  'not_applicable',
+  'unknown_contributing',
+  'conflicting'
+]);
+
+const R5_FLOOR_ALLOCATION_STATUS = new Set([
+  'not_required',
+  'complete',
+  'incomplete',
+  'unresolved'
+]);
+
+const R5_FLOOR_LEVEL_RANK = Object.freeze({
+  direct_technical_cost: 1,
+  landed_deployed_technical_cost: 2,
+  total_service_cost: 3,
+  full_economic_cost: 4
+});
+
+const R5_FLOOR_PURPOSE_MINIMUM_RANK = Object.freeze({
+  direct_technical_analysis: 1,
+  deployed_asset_analysis: 2,
+  service_sustainability: 3,
+  full_economic_sustainability: 4
+});
+
+const R5_FLOOR_STATUS_PRECEDENCE = Object.freeze([
+  'conflicting_evidence',
+  'currency_mismatch',
+  'unit_mismatch',
+  'scope_mismatch',
+  'effective_date_missing',
+  'unresolved_reconciliation',
+  'unresolved_cost_coverage',
+  'missing_allocation_basis',
+  'incomplete_required_costs',
+  'eligible_final',
+  'eligible_lower_bound'
+]);
+
+const R5_B3_2_ENUMS = Object.freeze({
+  eligibility_status:
+    Object.freeze([...R5_FLOOR_ELIGIBILITY_STATUS]),
+  floor_purpose:
+    Object.freeze([...R5_FLOOR_PURPOSE]),
+  reconciliation_status:
+    Object.freeze([...R5_FLOOR_RECONCILIATION_STATUS]),
+  coverage_status:
+    Object.freeze([...R5_FLOOR_COVERAGE_STATUS]),
+  allocation_status:
+    Object.freeze([...R5_FLOOR_ALLOCATION_STATUS]),
+  status_precedence:
+    R5_FLOOR_STATUS_PRECEDENCE
+});
+
+function validateFloorEligibilityStatus(
+  value,
+  path = 'eligibility_status'
+) {
+  return validateB3EnumValue(
+    value,
+    R5_FLOOR_ELIGIBILITY_STATUS,
+    path
+  );
+}
+
+function validateFloorPurpose(
+  value,
+  path = 'floor_purpose'
+) {
+  return validateB3EnumValue(
+    value,
+    R5_FLOOR_PURPOSE,
+    path
+  );
+}
+
+function validateFloorReconciliationStatus(
+  value,
+  path = 'reconciliation_status'
+) {
+  return validateB3EnumValue(
+    value,
+    R5_FLOOR_RECONCILIATION_STATUS,
+    path
+  );
+}
+
+function validateFloorCoverageStatus(
+  value,
+  path = 'coverage_status'
+) {
+  return validateB3EnumValue(
+    value,
+    R5_FLOOR_COVERAGE_STATUS,
+    path
+  );
+}
+
+function validateFloorAllocationStatus(
+  value,
+  path = 'allocation.status'
+) {
+  return validateB3EnumValue(
+    value,
+    R5_FLOOR_ALLOCATION_STATUS,
+    path
+  );
+}
+
+function validateFloorBasisDimensions(
+  raw,
+  path
+) {
+  validatePlainObject(raw, path);
+
+  nonEmptyString(
+    raw.currency,
+    path + '.currency',
+    16
+  );
+
+  nonEmptyString(
+    raw.unit,
+    path + '.unit',
+    200
+  );
+
+  nonEmptyString(
+    raw.scope_ref,
+    path + '.scope_ref',
+    500
+  );
+
+  /*
+   * Only effective_date is nullable in B3.2,
+   * because effective_date_missing is a frozen
+   * evaluator state.
+   */
+  if (raw.effective_date !== null) {
+    nonEmptyString(
+      raw.effective_date,
+      path + '.effective_date',
+      64
+    );
+  }
+
+  return raw;
+}
+
+function validateFloorRequiredContext(
+  raw,
+  path = 'required_context'
+) {
+  validatePlainObject(raw, path);
+
+  nonEmptyString(
+    raw.currency,
+    path + '.currency',
+    16
+  );
+
+  nonEmptyString(
+    raw.unit,
+    path + '.unit',
+    200
+  );
+
+  nonEmptyString(
+    raw.scope_ref,
+    path + '.scope_ref',
+    500
+  );
+
+  validateFloorPurpose(
+    raw.floor_purpose,
+    path + '.floor_purpose'
+  );
+
+  return raw;
+}
+
+function validateFloorAllocation(
+  raw,
+  path = 'allocation'
+) {
+  validatePlainObject(raw, path);
+
+  validateBoolean(
+    raw.required,
+    path + '.required'
+  );
+
+  validateFloorAllocationStatus(
+    raw.status,
+    path + '.status'
+  );
+
+  const optionalStrings = [
+    'basis',
+    'driver',
+    'lifecycle_or_period',
+    'utilization_or_capacity'
+  ];
+
+  for (const key of optionalStrings) {
+    if (raw[key] !== null) {
+      nonEmptyString(
+        raw[key],
+        path + '.' + key,
+        500
+      );
+    }
+  }
+
+  /*
+   * If basis is declared, it must reuse the
+   * existing canonical allocation vocabulary.
+   */
+  if (raw.basis !== null) {
+    validateR5AllocationBasis(
+      raw.basis,
+      path + '.basis'
+    );
+  }
+
+  validateB3EvidenceRefs(
+    raw.evidence_refs,
+    path + '.evidence_refs'
+  );
+
+  return raw;
+}
+
+function validateFloorEligibilityInput(
+  raw,
+  path = 'floor_eligibility_input'
+) {
+  validatePlainObject(raw, path);
+
+  nonEmptyString(
+    raw.floor_basis_id,
+    path + '.floor_basis_id',
+    500
+  );
+
+  validateR5OfferId(
+    raw.offer_id,
+    path + '.offer_id'
+  );
+
+  nonEmptyString(
+    raw.segment_id,
+    path + '.segment_id',
+    500
+  );
+
+  validateB3Scenario(
+    raw.scenario_id,
+    path + '.scenario_id'
+  );
+
+  validateEconomicFloorCostLevel(
+    raw.requested_cost_level,
+    path + '.requested_cost_level'
+  );
+
+  nonEmptyString(
+    raw.cost_basis_ref,
+    path + '.cost_basis_ref',
+    500
+  );
+
+  for (const key of [
+    'configuration_ref',
+    'technical_change_ref'
+  ]) {
+    if (
+      raw[key] !== null &&
+      raw[key] !== undefined
+    ) {
+      nonEmptyString(
+        raw[key],
+        path + '.' + key,
+        500
+      );
+    }
+  }
+
+  validateFloorBasisDimensions(
+    raw.actual_basis,
+    path + '.actual_basis'
+  );
+
+  validateFloorRequiredContext(
+    raw.required_context,
+    path + '.required_context'
+  );
+
+  validateR5EconomicCostCompleteness(
+    raw.completeness_status,
+    path + '.completeness_status'
+  );
+
+  validateFloorReconciliationStatus(
+    raw.reconciliation_status,
+    path + '.reconciliation_status'
+  );
+
+  validateFloorCoverageStatus(
+    raw.coverage_status,
+    path + '.coverage_status'
+  );
+
+  validateFloorAllocation(
+    raw.allocation,
+    path + '.allocation'
+  );
+
+  nonEmptyString(
+    raw.provenance,
+    path + '.provenance',
+    500
+  );
+
+  validateR5SourceType(
+    raw.source_type,
+    path + '.source_type'
+  );
+
+  validateR5Confidence(
+    raw.confidence,
+    path + '.confidence'
+  );
+
+  validateB3EvidenceRefs(
+    raw.evidence_refs,
+    path + '.evidence_refs'
+  );
+
+  validateOptionalString(
+    raw.notes,
+    path + '.notes'
+  );
+
+  return raw;
+}
+
+function floorPurposeSatisfied(
+  requestedCostLevel,
+  floorPurpose
+) {
+  const actualRank =
+    R5_FLOOR_LEVEL_RANK[requestedCostLevel];
+
+  const requiredRank =
+    R5_FLOOR_PURPOSE_MINIMUM_RANK[floorPurpose];
+
+  return actualRank >= requiredRank;
+}
+
+function evaluateFloorEligibility(
+  raw,
+  path = 'floor_eligibility_input'
+) {
+  validateFloorEligibilityInput(raw, path);
+
+  const blockingReasons = [];
+  const diagnostics = [];
+
+  const addBlock = (
+    status,
+    code,
+    message
+  ) => {
+    blockingReasons.push({
+      status,
+      code
+    });
+
+    diagnostics.push({
+      severity: 'blocking',
+      code,
+      message
+    });
+  };
+
+  /*
+   * Evidence conflict has highest precedence.
+   */
+  if (
+    raw.reconciliation_status === 'conflicting' ||
+    raw.coverage_status === 'conflicting' ||
+    raw.source_type === 'technical_fixture'
+  ) {
+    addBlock(
+      'conflicting_evidence',
+      raw.source_type === 'technical_fixture'
+        ? 'TECHNICAL_FIXTURE_NOT_OFFICIAL_ECONOMIC_EVIDENCE'
+        : 'CONFLICTING_ECONOMIC_EVIDENCE',
+      raw.source_type === 'technical_fixture'
+        ? 'Technical fixture evidence cannot qualify as an official economic floor.'
+        : 'One or more economic evidence dimensions conflict.'
+    );
+  }
+
+  if (
+    raw.actual_basis.currency !==
+    raw.required_context.currency
+  ) {
+    addBlock(
+      'currency_mismatch',
+      'CURRENCY_MISMATCH',
+      'Actual basis currency differs from required context currency.'
+    );
+  }
+
+  if (
+    raw.actual_basis.unit !==
+    raw.required_context.unit
+  ) {
+    addBlock(
+      'unit_mismatch',
+      'UNIT_MISMATCH',
+      'Actual basis unit differs from required context unit.'
+    );
+  }
+
+  if (
+    raw.actual_basis.scope_ref !==
+    raw.required_context.scope_ref
+  ) {
+    addBlock(
+      'scope_mismatch',
+      'SCOPE_MISMATCH',
+      'Actual basis scope differs from required context scope.'
+    );
+  }
+
+  if (raw.actual_basis.effective_date === null) {
+    addBlock(
+      'effective_date_missing',
+      'EFFECTIVE_DATE_MISSING',
+      'Actual cost basis has no effective date.'
+    );
+  }
+
+  if (raw.reconciliation_status === 'unresolved') {
+    addBlock(
+      'unresolved_reconciliation',
+      'UNRESOLVED_RECONCILIATION',
+      'Applicable reconciliation remains unresolved.'
+    );
+  }
+
+  if (
+    raw.coverage_status === 'unknown_contributing'
+  ) {
+    addBlock(
+      'unresolved_cost_coverage',
+      'UNKNOWN_CONTRIBUTING_COST_COVERAGE',
+      'At least one contributing cost coverage dimension remains unknown.'
+    );
+  }
+
+  /*
+   * Allocation readiness is evaluated economically,
+   * rather than rejected structurally.
+   */
+  if (raw.allocation.required) {
+    if (
+      raw.allocation.status !== 'complete' ||
+      raw.allocation.basis === null ||
+      raw.allocation.driver === null ||
+      raw.allocation.lifecycle_or_period === null
+    ) {
+      addBlock(
+        'missing_allocation_basis',
+        raw.allocation.status === 'unresolved'
+          ? 'REQUIRED_ALLOCATION_UNRESOLVED'
+          : 'REQUIRED_ALLOCATION_INCOMPLETE',
+        raw.allocation.status === 'unresolved'
+          ? 'Required recurring/lifecycle allocation remains unresolved.'
+          : 'Required recurring/lifecycle allocation is incomplete.'
+      );
+    }
+  } else {
+    const carriesAllocationPayload =
+      raw.allocation.basis !== null ||
+      raw.allocation.driver !== null ||
+      raw.allocation.lifecycle_or_period !== null ||
+      raw.allocation.utilization_or_capacity !== null ||
+      raw.allocation.evidence_refs.length > 0;
+
+    if (
+      raw.allocation.status !== 'not_required' ||
+      carriesAllocationPayload
+    ) {
+      addBlock(
+        'missing_allocation_basis',
+        carriesAllocationPayload
+          ? 'ALLOCATION_NOT_REQUIRED_WITH_PAYLOAD'
+          : 'ALLOCATION_STATUS_INCONSISTENT',
+        carriesAllocationPayload
+          ? 'Allocation is marked not required but still carries allocation mechanics or evidence.'
+          : 'Allocation is marked not required but carries a non-matching readiness status.'
+      );
+    }
+  }
+
+  if (
+    raw.completeness_status !==
+    'complete_for_declared_scope'
+  ) {
+    addBlock(
+      'incomplete_required_costs',
+      'COST_BASIS_NOT_COMPLETE_FOR_DECLARED_SCOPE',
+      'Cost basis is not complete for the declared scope.'
+    );
+  }
+
+  /*
+   * Pick the highest-precedence blocking status.
+   */
+  let primaryStatus = null;
+
+  for (
+    const candidateStatus of
+    R5_FLOOR_STATUS_PRECEDENCE
+  ) {
+    if (
+      blockingReasons.some(
+        (item) =>
+          item.status === candidateStatus
+      )
+    ) {
+      primaryStatus = candidateStatus;
+      break;
+    }
+  }
+
+  if (primaryStatus !== null) {
+    return {
+      floor_basis_id: raw.floor_basis_id,
+      requested_cost_level:
+        raw.requested_cost_level,
+      eligibility_status: primaryStatus,
+      eligible_for_final_floor: false,
+      eligible_as_lower_bound: false,
+      blocking_reasons: blockingReasons,
+      diagnostics,
+      cost_basis_ref: raw.cost_basis_ref,
+      configuration_ref:
+        raw.configuration_ref ?? null,
+      technical_change_ref:
+        raw.technical_change_ref ?? null,
+      evidence_refs:
+        [...raw.evidence_refs]
+    };
+  }
+
+  const purposeSatisfied =
+    floorPurposeSatisfied(
+      raw.requested_cost_level,
+      raw.required_context.floor_purpose
+    );
+
+  if (purposeSatisfied) {
+    diagnostics.push({
+      severity: 'info',
+      code: 'ELIGIBLE_FINAL',
+      message:
+        'Cost basis is sufficiently comprehensive for the declared floor purpose.'
+    });
+
+    return {
+      floor_basis_id: raw.floor_basis_id,
+      requested_cost_level:
+        raw.requested_cost_level,
+      eligibility_status: 'eligible_final',
+      eligible_for_final_floor: true,
+      eligible_as_lower_bound: false,
+      blocking_reasons: [],
+      diagnostics,
+      cost_basis_ref: raw.cost_basis_ref,
+      configuration_ref:
+        raw.configuration_ref ?? null,
+      technical_change_ref:
+        raw.technical_change_ref ?? null,
+      evidence_refs:
+        [...raw.evidence_refs]
+    };
+  }
+
+  diagnostics.push({
+    severity: 'info',
+    code: 'ELIGIBLE_LOWER_BOUND',
+    message:
+      'Cost basis is valid evidence but insufficiently comprehensive for the declared floor purpose.'
+  });
+
+  return {
+    floor_basis_id: raw.floor_basis_id,
+    requested_cost_level:
+      raw.requested_cost_level,
+    eligibility_status: 'eligible_lower_bound',
+    eligible_for_final_floor: false,
+    eligible_as_lower_bound: true,
+    blocking_reasons: [],
+    diagnostics,
+    cost_basis_ref: raw.cost_basis_ref,
+    configuration_ref:
+      raw.configuration_ref ?? null,
+    technical_change_ref:
+      raw.technical_change_ref ?? null,
+    evidence_refs:
+      [...raw.evidence_refs]
+  };
+}
+
+/* R5 B3.2 FLOOR ELIGIBILITY — END */
+
+
 
 /* R5 CONTRACT FOUNDATION — END */
 
 module.exports = {
+  R5_B3_2_ENUMS,
+  validateFloorEligibilityStatus,
+  validateFloorPurpose,
+  validateFloorReconciliationStatus,
+  validateFloorCoverageStatus,
+  validateFloorAllocationStatus,
+  validateFloorEligibilityInput,
+  evaluateFloorEligibility,
   R5_B3_CORRIDOR_ENUMS,
   validateEconomicCorridorStatus,
   validateR5PricingPolicy,
