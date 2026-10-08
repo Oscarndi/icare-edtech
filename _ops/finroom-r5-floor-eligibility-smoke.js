@@ -442,7 +442,8 @@ assert.strictEqual(
 );
 
 /*
- * Even evidence-only payload is inconsistent with not_required.
+ * Documentary evidence may explain why allocation is not required.
+ * Evidence alone is not allocation mechanics.
  */
 result = evaluate({
   allocation: {
@@ -453,15 +454,81 @@ result = evaluate({
     lifecycle_or_period: null,
     utilization_or_capacity: null,
     evidence_refs: [
-      'synthetic:unexpected-allocation-evidence'
+      'synthetic:why-allocation-not-required'
     ]
   }
 });
 
 assert.strictEqual(
   result.eligibility_status,
-  'missing_allocation_basis'
+  'eligible_final'
 );
+
+assert.strictEqual(
+  result.eligible_for_final_floor,
+  true
+);
+
+/*
+ * Explicit no-mechanics / no-evidence not_required remains eligible.
+ */
+result = evaluate({
+  allocation: {
+    required: false,
+    status: 'not_required',
+    basis: null,
+    driver: null,
+    lifecycle_or_period: null,
+    utilization_or_capacity: null,
+    evidence_refs: []
+  }
+});
+
+assert.strictEqual(
+  result.eligibility_status,
+  'eligible_final'
+);
+
+/*
+ * Each actual allocation-mechanics field remains contradictory
+ * when allocation is explicitly not required.
+ */
+for (const [field, value] of [
+  ['basis', 'per_learner'],
+  ['driver', 'synthetic contradictory driver'],
+  ['lifecycle_or_period', 'synthetic:period'],
+  ['utilization_or_capacity', 'synthetic:capacity']
+]) {
+  const allocation = {
+    required: false,
+    status: 'not_required',
+    basis: null,
+    driver: null,
+    lifecycle_or_period: null,
+    utilization_or_capacity: null,
+    evidence_refs: [
+      'synthetic:not-required-evidence'
+    ]
+  };
+
+  allocation[field] = value;
+
+  result = evaluate({
+    allocation
+  });
+
+  assert.strictEqual(
+    result.eligibility_status,
+    'missing_allocation_basis',
+    `not_required must reject allocation mechanics field: ${field}`
+  );
+
+  assert.strictEqual(
+    result.eligible_for_final_floor,
+    false,
+    `not_required mechanics must block final floor: ${field}`
+  );
+}
 
 /* --------------------------------------------------------- */
 /* CONFLICT / SOURCE SAFETY                                  */

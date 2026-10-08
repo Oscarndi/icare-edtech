@@ -5537,24 +5537,29 @@ function evaluateFloorEligibility(
       );
     }
   } else {
-    const carriesAllocationPayload =
+    /*
+     * Documentary evidence is not allocation mechanics.
+     *
+     * evidence_refs may explain why allocation is not required
+     * and must not, by itself, create an allocation blocker.
+     */
+    const carriesAllocationMechanics =
       raw.allocation.basis !== null ||
       raw.allocation.driver !== null ||
       raw.allocation.lifecycle_or_period !== null ||
-      raw.allocation.utilization_or_capacity !== null ||
-      raw.allocation.evidence_refs.length > 0;
+      raw.allocation.utilization_or_capacity !== null;
 
     if (
       raw.allocation.status !== 'not_required' ||
-      carriesAllocationPayload
+      carriesAllocationMechanics
     ) {
       addBlock(
         'missing_allocation_basis',
-        carriesAllocationPayload
-          ? 'ALLOCATION_NOT_REQUIRED_WITH_PAYLOAD'
+        carriesAllocationMechanics
+          ? 'ALLOCATION_NOT_REQUIRED_WITH_MECHANICS'
           : 'ALLOCATION_STATUS_INCONSISTENT',
-        carriesAllocationPayload
-          ? 'Allocation is marked not required but still carries allocation mechanics or evidence.'
+        carriesAllocationMechanics
+          ? 'Allocation is marked not required but still carries allocation mechanics.'
           : 'Allocation is marked not required but carries a non-matching readiness status.'
       );
     }
