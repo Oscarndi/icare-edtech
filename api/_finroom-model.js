@@ -5672,11 +5672,912 @@ function evaluateFloorEligibility(
 
 /* R5 B3.2 FLOOR ELIGIBILITY — END */
 
+/* R5 B3.3 STRATEGIC TARGET POLICY — BEGIN
+ *
+ * Determines whether a declared strategic target is economically
+ * comparable with an eligible floor and whether a below-floor target
+ * has an explicit support policy.
+ *
+ * This block DOES NOT:
+ * - validate willingness-to-pay;
+ * - establish affordability;
+ * - calculate the full economic corridor;
+ * - perform FX or unit conversion;
+ * - retrieve real market/customer data;
+ * - automatically mutate the official target;
+ * - synchronize TechRoom automatically;
+ * - expose endpoints or browser arithmetic.
+ */
+
+const R5_B3_3_TARGET_ALLOWED_SOURCE_TYPE = new Set([
+  'management_target',
+  'internal_estimate',
+  'market_reference',
+  'competitor_reference',
+  'customer_interview',
+  'pilot_observation',
+  'contract',
+  'statutory_source'
+]);
+
+const R5_TARGET_POLICY_STATUS = new Set([
+  'ready_at_or_above_floor',
+  'ready_below_floor_with_support',
+  'floor_not_final',
+  'below_floor_without_support',
+  'currency_mismatch',
+  'unit_mismatch',
+  'scope_mismatch',
+  'offer_segment_scenario_mismatch',
+  'invalid_target_evidence',
+  'manual_review_required'
+]);
+
+const R5_TARGET_SUPPORT_TYPE = new Set([
+  'subsidy',
+  'cross_subsidy',
+  'custom_documented_support'
+]);
+
+const R5_TARGET_SUPPORT_STATUS = new Set([
+  'identified',
+  'unresolved',
+  'approved',
+  'rejected'
+]);
+
+const R5_TARGET_RELATION_TO_FLOOR = new Set([
+  'above',
+  'equal',
+  'below',
+  'not_comparable'
+]);
+
+const R5_TARGET_POLICY_STATUS_PRECEDENCE = Object.freeze([
+  'invalid_target_evidence',
+  'currency_mismatch',
+  'unit_mismatch',
+  'scope_mismatch',
+  'offer_segment_scenario_mismatch',
+  'floor_not_final',
+  'below_floor_without_support',
+  'manual_review_required',
+  'ready_below_floor_with_support',
+  'ready_at_or_above_floor'
+]);
+
+const R5_B3_3_ENUMS = Object.freeze({
+  target_policy_status:
+    Object.freeze([...R5_TARGET_POLICY_STATUS]),
+  support_type:
+    Object.freeze([...R5_TARGET_SUPPORT_TYPE]),
+  support_status:
+    Object.freeze([...R5_TARGET_SUPPORT_STATUS]),
+  relation_to_floor:
+    Object.freeze([...R5_TARGET_RELATION_TO_FLOOR]),
+  status_precedence:
+    R5_TARGET_POLICY_STATUS_PRECEDENCE
+});
+
+function validateTargetPolicyStatus(
+  value,
+  path = 'target_policy_status'
+) {
+  return validateB3EnumValue(
+    value,
+    R5_TARGET_POLICY_STATUS,
+    path
+  );
+}
+
+function validateTargetSupportType(
+  value,
+  path = 'support_policy.type'
+) {
+  return validateB3EnumValue(
+    value,
+    R5_TARGET_SUPPORT_TYPE,
+    path
+  );
+}
+
+function validateTargetSupportStatus(
+  value,
+  path = 'support_policy.status'
+) {
+  return validateB3EnumValue(
+    value,
+    R5_TARGET_SUPPORT_STATUS,
+    path
+  );
+}
+
+function validateTargetRelationToFloor(
+  value,
+  path = 'relation_to_floor'
+) {
+  return validateB3EnumValue(
+    value,
+    R5_TARGET_RELATION_TO_FLOOR,
+    path
+  );
+}
+
+function validateB3StringRefs(
+  raw,
+  path
+) {
+  validateArray(raw, path);
+
+  raw.forEach((value, index) => {
+    nonEmptyString(
+      value,
+      path + '[' + index + ']',
+      500
+    );
+  });
+
+  return raw;
+}
+
+function validateTargetPolicyStrategicTarget(
+  raw,
+  path = 'strategic_target'
+) {
+  validatePlainObject(raw, path);
+
+  finiteNumber(
+    raw.value,
+    path + '.value',
+    { min: 0 }
+  );
+
+  nonEmptyString(
+    raw.currency,
+    path + '.currency',
+    16
+  );
+
+  nonEmptyString(
+    raw.unit,
+    path + '.unit',
+    200
+  );
+
+  nonEmptyString(
+    raw.scope_ref,
+    path + '.scope_ref',
+    500
+  );
+
+  nonEmptyString(
+    raw.effective_date,
+    path + '.effective_date',
+    64
+  );
+
+  validateR5PricingPolicy(
+    raw.pricing_policy,
+    path + '.pricing_policy'
+  );
+
+  nonEmptyString(
+    raw.rationale,
+    path + '.rationale',
+    2000
+  );
+
+  nonEmptyString(
+    raw.provenance,
+    path + '.provenance',
+    500
+  );
+
+  validateR5SourceType(
+    raw.source_type,
+    path + '.source_type'
+  );
+
+  validateR5AssumptionStatus(
+    raw.assumption_status,
+    path + '.assumption_status'
+  );
+
+  validateR5Confidence(
+    raw.confidence,
+    path + '.confidence'
+  );
+
+  validateB3StringRefs(
+    raw.evidence_refs,
+    path + '.evidence_refs'
+  );
+
+  /*
+   * Reuse B3.1's strategic-target semantics too.
+   * B3.1 accepts a target object without target-local
+   * currency/unit/scope/date fields, so pass only its
+   * canonical target subset.
+   */
+  validateStrategicTarget(
+    {
+      value: raw.value,
+      pricing_policy: raw.pricing_policy,
+      rationale: raw.rationale,
+      provenance: raw.provenance,
+      source_type: raw.source_type,
+      assumption_status: raw.assumption_status,
+      confidence: raw.confidence,
+      evidence_refs: raw.evidence_refs
+    },
+    path
+  );
+
+  return raw;
+}
+
+function validateTargetPolicyFloorContext(
+  raw,
+  path = 'floor_context'
+) {
+  validatePlainObject(raw, path);
+
+  finiteNumber(
+    raw.value,
+    path + '.value',
+    { min: 0 }
+  );
+
+  nonEmptyString(
+    raw.currency,
+    path + '.currency',
+    16
+  );
+
+  nonEmptyString(
+    raw.unit,
+    path + '.unit',
+    200
+  );
+
+  nonEmptyString(
+    raw.scope_ref,
+    path + '.scope_ref',
+    500
+  );
+
+  validateEconomicFloorCostLevel(
+    raw.floor_cost_level,
+    path + '.floor_cost_level'
+  );
+
+  nonEmptyString(
+    raw.floor_basis_ref,
+    path + '.floor_basis_ref',
+    500
+  );
+
+  validateFloorEligibilityStatus(
+    raw.floor_eligibility_status,
+    path + '.floor_eligibility_status'
+  );
+
+  validateR5OfferId(
+    raw.offer_id,
+    path + '.offer_id'
+  );
+
+  nonEmptyString(
+    raw.segment_id,
+    path + '.segment_id',
+    500
+  );
+
+  validateB3Scenario(
+    raw.scenario_id,
+    path + '.scenario_id'
+  );
+
+  validateB3StringRefs(
+    raw.evidence_refs,
+    path + '.evidence_refs'
+  );
+
+  return raw;
+}
+
+function validateTargetSupportPolicy(
+  raw,
+  path = 'support_policy'
+) {
+  validatePlainObject(raw, path);
+
+  validateTargetSupportStatus(
+    raw.status,
+    path + '.status'
+  );
+
+  validateTargetSupportType(
+    raw.type,
+    path + '.type'
+  );
+
+  if (
+    typeof raw.amount_or_rule !== 'number' &&
+    typeof raw.amount_or_rule !== 'string'
+  ) {
+    fail(path + '.amount_or_rule');
+  }
+
+  if (typeof raw.amount_or_rule === 'number') {
+    finiteNumber(
+      raw.amount_or_rule,
+      path + '.amount_or_rule',
+      { min: 0 }
+    );
+  } else {
+    nonEmptyString(
+      raw.amount_or_rule,
+      path + '.amount_or_rule',
+      1000
+    );
+  }
+
+  if (
+    raw.source_ref !== null &&
+    raw.source_ref !== undefined
+  ) {
+    nonEmptyString(
+      raw.source_ref,
+      path + '.source_ref',
+      500
+    );
+  }
+
+  validateB3StringRefs(
+    raw.evidence_refs,
+    path + '.evidence_refs'
+  );
+
+  if (
+    (
+      raw.status === 'identified' ||
+      raw.status === 'approved'
+    ) &&
+    (
+      raw.source_ref === null ||
+      raw.source_ref === undefined
+    )
+  ) {
+    fail(path + '.source_ref');
+  }
+
+  return raw;
+}
+
+function validateTargetPolicyInput(
+  raw,
+  path = 'target_policy_input'
+) {
+  validatePlainObject(raw, path);
+
+  nonEmptyString(
+    raw.target_policy_id,
+    path + '.target_policy_id',
+    500
+  );
+
+  validateR5OfferId(
+    raw.offer_id,
+    path + '.offer_id'
+  );
+
+  nonEmptyString(
+    raw.segment_id,
+    path + '.segment_id',
+    500
+  );
+
+  validateB3Scenario(
+    raw.scenario_id,
+    path + '.scenario_id'
+  );
+
+  validateTargetPolicyStrategicTarget(
+    raw.strategic_target,
+    path + '.strategic_target'
+  );
+
+  validateTargetPolicyFloorContext(
+    raw.floor_context,
+    path + '.floor_context'
+  );
+
+  if (
+    raw.support_policy !== null &&
+    raw.support_policy !== undefined
+  ) {
+    validateTargetSupportPolicy(
+      raw.support_policy,
+      path + '.support_policy'
+    );
+  }
+
+  validateB3StringRefs(
+    raw.market_context_refs,
+    path + '.market_context_refs'
+  );
+
+  validateR5PricingDecisionStatus(
+    raw.decision_status,
+    path + '.decision_status'
+  );
+
+  for (const key of [
+    'configuration_ref',
+    'technical_change_ref'
+  ]) {
+    if (
+      raw[key] !== null &&
+      raw[key] !== undefined
+    ) {
+      nonEmptyString(
+        raw[key],
+        path + '.' + key,
+        500
+      );
+    }
+  }
+
+  validateOptionalString(
+    raw.notes,
+    path + '.notes'
+  );
+
+  return raw;
+}
+
+function targetPolicySupportMatches(
+  pricingPolicy,
+  supportPolicy
+) {
+  if (!supportPolicy) {
+    return false;
+  }
+
+  if (pricingPolicy === 'subsidized') {
+    return supportPolicy.type === 'subsidy';
+  }
+
+  if (pricingPolicy === 'cross_subsidized') {
+    return supportPolicy.type === 'cross_subsidy';
+  }
+
+  if (pricingPolicy === 'custom_documented') {
+    return (
+      supportPolicy.type ===
+      'custom_documented_support'
+    );
+  }
+
+  return false;
+}
+
+function targetSupportIsReady(
+  supportPolicy
+) {
+  return Boolean(
+    supportPolicy &&
+    (
+      supportPolicy.status === 'identified' ||
+      supportPolicy.status === 'approved'
+    ) &&
+    supportPolicy.source_ref
+  );
+}
+
+function evaluateTargetPolicy(
+  raw,
+  path = 'target_policy_input'
+) {
+  validateTargetPolicyInput(raw, path);
+
+  const blockers = [];
+  const diagnostics = [];
+
+  const addBlock = (
+    status,
+    code,
+    message
+  ) => {
+    blockers.push({
+      status,
+      code
+    });
+
+    diagnostics.push({
+      severity: 'blocking',
+      code,
+      message
+    });
+  };
+
+  /*
+   * Target-source authority is stricter than the generic
+   * R5 source vocabulary.
+   *
+   * technical_fixture never reaches this evaluator because
+   * B3.1 validateStrategicTarget rejects it structurally.
+   *
+   * Other generic technical/accounting sources remain
+   * representable, but cannot by themselves qualify an
+   * official strategic target.
+   */
+  if (
+    !R5_B3_3_TARGET_ALLOWED_SOURCE_TYPE.has(
+      raw.strategic_target.source_type
+    )
+  ) {
+    addBlock(
+      'invalid_target_evidence',
+      'SOURCE_NOT_ELIGIBLE_FOR_STRATEGIC_TARGET',
+      'Declared source type cannot qualify official strategic-target readiness.'
+    );
+  }
+
+  const sameCurrency =
+    raw.strategic_target.currency ===
+    raw.floor_context.currency;
+
+  const sameUnit =
+    raw.strategic_target.unit ===
+    raw.floor_context.unit;
+
+  const sameScope =
+    raw.strategic_target.scope_ref ===
+    raw.floor_context.scope_ref;
+
+  const sameOfferSegmentScenario =
+    raw.offer_id === raw.floor_context.offer_id &&
+    raw.segment_id === raw.floor_context.segment_id &&
+    raw.scenario_id === raw.floor_context.scenario_id;
+
+  if (!sameCurrency) {
+    addBlock(
+      'currency_mismatch',
+      'TARGET_FLOOR_CURRENCY_MISMATCH',
+      'Strategic target and floor currencies differ.'
+    );
+  }
+
+  if (!sameUnit) {
+    addBlock(
+      'unit_mismatch',
+      'TARGET_FLOOR_UNIT_MISMATCH',
+      'Strategic target and floor units differ.'
+    );
+  }
+
+  if (!sameScope) {
+    addBlock(
+      'scope_mismatch',
+      'TARGET_FLOOR_SCOPE_MISMATCH',
+      'Strategic target and floor scopes differ.'
+    );
+  }
+
+  if (!sameOfferSegmentScenario) {
+    addBlock(
+      'offer_segment_scenario_mismatch',
+      'TARGET_FLOOR_CONTEXT_MISMATCH',
+      'Target and floor offer/segment/scenario dimensions differ.'
+    );
+  }
+
+  const dimensionsComparable =
+    sameCurrency &&
+    sameUnit &&
+    sameScope &&
+    sameOfferSegmentScenario;
+
+  const floorIsFinal =
+    raw.floor_context.floor_eligibility_status ===
+    'eligible_final';
+
+  if (!floorIsFinal) {
+    addBlock(
+      'floor_not_final',
+      'FLOOR_NOT_FINAL',
+      'Target policy cannot establish sustainability because the floor is not eligible_final.'
+    );
+  }
+
+  let relationToFloor = 'not_comparable';
+  let requiredSupportGap = null;
+  let subsidyRequired = false;
+
+  if (
+    dimensionsComparable &&
+    floorIsFinal
+  ) {
+    if (
+      raw.strategic_target.value >
+      raw.floor_context.value
+    ) {
+      relationToFloor = 'above';
+    } else if (
+      raw.strategic_target.value ===
+      raw.floor_context.value
+    ) {
+      relationToFloor = 'equal';
+    } else {
+      relationToFloor = 'below';
+      subsidyRequired = true;
+      requiredSupportGap =
+        raw.floor_context.value -
+        raw.strategic_target.value;
+    }
+  }
+
+  if (relationToFloor === 'below') {
+    const policyPermitsBelowFloor =
+      (
+        raw.strategic_target.pricing_policy ===
+        'subsidized'
+      ) ||
+      (
+        raw.strategic_target.pricing_policy ===
+        'cross_subsidized'
+      ) ||
+      (
+        raw.strategic_target.pricing_policy ===
+        'custom_documented'
+      );
+
+    const supportMatches =
+      targetPolicySupportMatches(
+        raw.strategic_target.pricing_policy,
+        raw.support_policy
+      );
+
+    const supportReady =
+      targetSupportIsReady(
+        raw.support_policy
+      );
+
+    if (
+      !policyPermitsBelowFloor ||
+      !raw.support_policy ||
+      !supportMatches ||
+      raw.support_policy.status === 'rejected'
+    ) {
+      addBlock(
+        'below_floor_without_support',
+        'BELOW_FLOOR_WITHOUT_VALID_SUPPORT',
+        'Below-floor strategic target lacks a valid matching support policy.'
+      );
+    } else if (
+      raw.support_policy.status === 'unresolved'
+    ) {
+      addBlock(
+        'manual_review_required',
+        'BELOW_FLOOR_SUPPORT_UNRESOLVED',
+        'Below-floor support policy remains unresolved.'
+      );
+    } else if (!supportReady) {
+      addBlock(
+        'below_floor_without_support',
+        'BELOW_FLOOR_SUPPORT_NOT_READY',
+        'Below-floor support policy is not ready.'
+      );
+    }
+  }
+
+  /*
+   * Support declarations above/equal floor do not change
+   * mathematical floor relation and are not required merely
+   * because a pricing policy happens to be named subsidized.
+   */
+  let primaryStatus = null;
+
+  for (
+    const candidateStatus of
+    R5_TARGET_POLICY_STATUS_PRECEDENCE
+  ) {
+    if (
+      blockers.some(
+        (item) =>
+          item.status === candidateStatus
+      )
+    ) {
+      primaryStatus = candidateStatus;
+      break;
+    }
+  }
+
+  if (primaryStatus !== null) {
+    return {
+      target_policy_id:
+        raw.target_policy_id,
+
+      status: primaryStatus,
+
+      target_value:
+        raw.strategic_target.value,
+
+      floor_value:
+        raw.floor_context.value,
+
+      relation_to_floor:
+        relationToFloor,
+
+      subsidy_required:
+        subsidyRequired,
+
+      required_support_gap:
+        requiredSupportGap,
+
+      ready_for_final_target_policy:
+        false,
+
+      blocking_reasons:
+        blockers,
+
+      diagnostics,
+
+      floor_basis_ref:
+        raw.floor_context.floor_basis_ref,
+
+      configuration_ref:
+        raw.configuration_ref ?? null,
+
+      technical_change_ref:
+        raw.technical_change_ref ?? null,
+
+      evidence_refs: [
+        ...raw.strategic_target.evidence_refs,
+        ...raw.floor_context.evidence_refs,
+        ...(
+          raw.support_policy
+            ? raw.support_policy.evidence_refs
+            : []
+        ),
+        ...raw.market_context_refs
+      ]
+    };
+  }
+
+  if (relationToFloor === 'below') {
+    diagnostics.push({
+      severity: 'info',
+      code:
+        'READY_BELOW_FLOOR_WITH_SUPPORT',
+      message:
+        'Below-floor strategic target has an explicit matching support policy.'
+    });
+
+    return {
+      target_policy_id:
+        raw.target_policy_id,
+
+      status:
+        'ready_below_floor_with_support',
+
+      target_value:
+        raw.strategic_target.value,
+
+      floor_value:
+        raw.floor_context.value,
+
+      relation_to_floor:
+        'below',
+
+      subsidy_required:
+        true,
+
+      required_support_gap:
+        requiredSupportGap,
+
+      ready_for_final_target_policy:
+        true,
+
+      blocking_reasons: [],
+      diagnostics,
+
+      floor_basis_ref:
+        raw.floor_context.floor_basis_ref,
+
+      configuration_ref:
+        raw.configuration_ref ?? null,
+
+      technical_change_ref:
+        raw.technical_change_ref ?? null,
+
+      evidence_refs: [
+        ...raw.strategic_target.evidence_refs,
+        ...raw.floor_context.evidence_refs,
+        ...raw.support_policy.evidence_refs,
+        ...raw.market_context_refs
+      ]
+    };
+  }
+
+  diagnostics.push({
+    severity: 'info',
+    code:
+      'READY_AT_OR_ABOVE_FLOOR',
+    message:
+      'Strategic target is comparable with a final floor and is at or above that floor.'
+  });
+
+  return {
+    target_policy_id:
+      raw.target_policy_id,
+
+    status:
+      'ready_at_or_above_floor',
+
+    target_value:
+      raw.strategic_target.value,
+
+    floor_value:
+      raw.floor_context.value,
+
+    relation_to_floor:
+      relationToFloor,
+
+    subsidy_required:
+      false,
+
+    required_support_gap:
+      null,
+
+    ready_for_final_target_policy:
+      true,
+
+    blocking_reasons: [],
+    diagnostics,
+
+    floor_basis_ref:
+      raw.floor_context.floor_basis_ref,
+
+    configuration_ref:
+      raw.configuration_ref ?? null,
+
+    technical_change_ref:
+      raw.technical_change_ref ?? null,
+
+    evidence_refs: [
+      ...raw.strategic_target.evidence_refs,
+      ...raw.floor_context.evidence_refs,
+      ...(
+        raw.support_policy
+          ? raw.support_policy.evidence_refs
+          : []
+      ),
+      ...raw.market_context_refs
+    ]
+  };
+}
+
+/* R5 B3.3 STRATEGIC TARGET POLICY — END */
+
+
 
 
 /* R5 CONTRACT FOUNDATION — END */
 
 module.exports = {
+  R5_B3_3_ENUMS,
+  validateTargetPolicyStatus,
+  validateTargetSupportType,
+  validateTargetSupportStatus,
+  validateTargetRelationToFloor,
+  validateTargetPolicyStrategicTarget,
+  validateTargetPolicyFloorContext,
+  validateTargetSupportPolicy,
+  validateTargetPolicyInput,
+  evaluateTargetPolicy,
   R5_B3_2_ENUMS,
   validateFloorEligibilityStatus,
   validateFloorPurpose,
