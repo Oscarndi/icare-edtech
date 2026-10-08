@@ -6562,12 +6562,452 @@ function evaluateTargetPolicy(
 
 /* R5 B3.3 STRATEGIC TARGET POLICY — END */
 
+/* R5 B3.4 AFFORDABILITY EVIDENCE — BEGIN
+ *
+ * Establishes the maturity/readiness of affordability evidence
+ * for one explicitly declared offer/segment/scenario/scope.
+ *
+ * This block DOES NOT:
+ * - validate willingness-to-pay;
+ * - validate demand;
+ * - compare the strategic target with the ceiling;
+ * - compare the economic floor with the ceiling;
+ * - calculate the final B3.5 corridor;
+ * - perform FX or unit conversion;
+ * - load real market/customer data;
+ * - mutate an official target or ceiling;
+ * - synchronize TechRoom automatically;
+ * - expose browser/client arithmetic.
+ */
+
+const R5_B3_4_STATUS = new Set([
+  'ceiling_unavailable',
+  'ceiling_preliminary',
+  'ceiling_to_validate',
+  'ceiling_observed',
+  'ceiling_validated_for_declared_scope',
+  'invalid_affordability_evidence',
+  'scope_or_dimension_mismatch',
+  'manual_review_required'
+]);
+
+const R5_B3_4_STATUS_PRECEDENCE = Object.freeze([
+  'invalid_affordability_evidence',
+  'scope_or_dimension_mismatch',
+  'manual_review_required',
+  'ceiling_unavailable',
+  'ceiling_preliminary',
+  'ceiling_to_validate',
+  'ceiling_observed',
+  'ceiling_validated_for_declared_scope'
+]);
+
+const R5_B3_4_ENUMS = Object.freeze({
+  affordability_status:
+    Object.freeze([...R5_B3_4_STATUS]),
+
+  status_precedence:
+    R5_B3_4_STATUS_PRECEDENCE
+});
+
+function validateAffordabilityEvidenceResultStatus(
+  value,
+  path = 'affordability_status'
+) {
+  return validateB3EnumValue(
+    value,
+    R5_B3_4_STATUS,
+    path
+  );
+}
+
+function validateB34StringRefs(
+  raw,
+  path
+) {
+  validateArray(raw, path);
+
+  raw.forEach((value, index) => {
+    nonEmptyString(
+      value,
+      path + '[' + index + ']',
+      500
+    );
+  });
+
+  return raw;
+}
+
+function validateB34NullableString(
+  value,
+  path,
+  max = 500
+) {
+  if (
+    value !== null &&
+    value !== undefined
+  ) {
+    nonEmptyString(
+      value,
+      path,
+      max
+    );
+  }
+
+  return value;
+}
+
+function validateAffordabilityEvidenceInput(
+  raw,
+  path = 'affordability_evidence_input'
+) {
+  validatePlainObject(raw, path);
+
+  nonEmptyString(
+    raw.affordability_basis_id,
+    path + '.affordability_basis_id',
+    500
+  );
+
+  validateR5OfferId(
+    raw.offer_id,
+    path + '.offer_id'
+  );
+
+  nonEmptyString(
+    raw.segment_id,
+    path + '.segment_id',
+    500
+  );
+
+  validateB3Scenario(
+    raw.scenario_id,
+    path + '.scenario_id'
+  );
+
+  nonEmptyString(
+    raw.currency,
+    path + '.currency',
+    16
+  );
+
+  nonEmptyString(
+    raw.unit,
+    path + '.unit',
+    200
+  );
+
+  nonEmptyString(
+    raw.scope_ref,
+    path + '.scope_ref',
+    500
+  );
+
+  nonEmptyString(
+    raw.effective_date,
+    path + '.effective_date',
+    64
+  );
+
+  validateB34NullableString(
+    raw.geography_ref,
+    path + '.geography_ref'
+  );
+
+  /*
+   * Reuse B3.1 affordability authority exactly.
+   *
+   * This preserves:
+   * - unavailable != 0 / infinity;
+   * - B3.1 source eligibility;
+   * - nonnegative available values;
+   * - competitor_reference cannot be validated;
+   * - validated evidence needs evidence_refs;
+   * - nested/shadow currency rejection.
+   */
+  validateAffordabilityCeiling(
+    raw.affordability_ceiling,
+    path + '.affordability_ceiling'
+  );
+
+  validateB34StringRefs(
+    raw.market_context_refs,
+    path + '.market_context_refs'
+  );
+
+  validateB34NullableString(
+    raw.methodology_ref,
+    path + '.methodology_ref'
+  );
+
+  validateB34NullableString(
+    raw.validation_protocol_ref,
+    path + '.validation_protocol_ref'
+  );
+
+  validateB34NullableString(
+    raw.configuration_ref,
+    path + '.configuration_ref'
+  );
+
+  validateB34NullableString(
+    raw.technical_change_ref,
+    path + '.technical_change_ref'
+  );
+
+  validateOptionalString(
+    raw.notes,
+    path + '.notes'
+  );
+
+  return raw;
+}
+
+function mapAffordabilityEvidenceStatus(
+  evidenceStatus
+) {
+  switch (evidenceStatus) {
+    case 'unavailable':
+      return 'ceiling_unavailable';
+
+    case 'preliminary_estimate':
+      return 'ceiling_preliminary';
+
+    case 'to_validate':
+      return 'ceiling_to_validate';
+
+    case 'observed':
+      return 'ceiling_observed';
+
+    case 'validated_for_declared_scope':
+      return 'ceiling_validated_for_declared_scope';
+
+    default:
+      fail(
+        'affordability_evidence_input.' +
+        'affordability_ceiling.evidence_status'
+      );
+  }
+}
+
+function evaluateAffordabilityEvidence(
+  raw,
+  path = 'affordability_evidence_input'
+) {
+  validateAffordabilityEvidenceInput(
+    raw,
+    path
+  );
+
+  const ceiling =
+    raw.affordability_ceiling;
+
+  const diagnostics = [];
+  const blockingReasons = [];
+
+  /*
+   * B3.1 validates the evidence object itself.
+   * B3.4 adds governance/readiness requirements.
+   *
+   * A declared "validated_for_declared_scope" ceiling
+   * without a validation protocol must not be silently
+   * presented as B3.4-final.
+   */
+  if (
+    ceiling.evidence_status ===
+      'validated_for_declared_scope' &&
+    (
+      raw.validation_protocol_ref === null ||
+      raw.validation_protocol_ref === undefined
+    )
+  ) {
+    blockingReasons.push({
+      status: 'manual_review_required',
+      code:
+        'VALIDATED_AFFORDABILITY_PROTOCOL_MISSING'
+    });
+
+    diagnostics.push({
+      severity: 'blocking',
+      code:
+        'VALIDATED_AFFORDABILITY_PROTOCOL_MISSING',
+      message:
+        'Validated affordability requires a declared validation protocol for B3.4 final readiness.'
+    });
+
+    return {
+      affordability_basis_id:
+        raw.affordability_basis_id,
+
+      status:
+        'manual_review_required',
+
+      ceiling_available:
+        true,
+
+      ceiling_value:
+        ceiling.value,
+
+      evidence_status:
+        ceiling.evidence_status,
+
+      ready_for_corridor_use:
+        false,
+
+      blocking_reasons:
+        blockingReasons,
+
+      diagnostics,
+
+      offer_id:
+        raw.offer_id,
+
+      segment_id:
+        raw.segment_id,
+
+      scenario_id:
+        raw.scenario_id,
+
+      currency:
+        raw.currency,
+
+      unit:
+        raw.unit,
+
+      scope_ref:
+        raw.scope_ref,
+
+      effective_date:
+        raw.effective_date,
+
+      geography_ref:
+        raw.geography_ref ?? null,
+
+      methodology_ref:
+        raw.methodology_ref ?? null,
+
+      validation_protocol_ref:
+        raw.validation_protocol_ref ?? null,
+
+      configuration_ref:
+        raw.configuration_ref ?? null,
+
+      technical_change_ref:
+        raw.technical_change_ref ?? null,
+
+      evidence_refs: [
+        ...ceiling.evidence_refs,
+        ...raw.market_context_refs
+      ]
+    };
+  }
+
+  const status =
+    mapAffordabilityEvidenceStatus(
+      ceiling.evidence_status
+    );
+
+  const available =
+    ceiling.evidence_status !==
+    'unavailable';
+
+  /*
+   * "ready_for_corridor_use" means the ceiling can be
+   * represented downstream with its exact maturity.
+   * It does not mean validated demand or WTP.
+   */
+  const readyForCorridorUse =
+    available;
+
+  diagnostics.push({
+    severity: 'info',
+    code:
+      status.toUpperCase(),
+    message:
+      available
+        ? 'Affordability evidence is available at its declared maturity.'
+        : 'Affordability evidence is explicitly unavailable.'
+  });
+
+  return {
+    affordability_basis_id:
+      raw.affordability_basis_id,
+
+    status,
+
+    ceiling_available:
+      available,
+
+    ceiling_value:
+      available
+        ? ceiling.value
+        : null,
+
+    evidence_status:
+      ceiling.evidence_status,
+
+    ready_for_corridor_use:
+      readyForCorridorUse,
+
+    blocking_reasons: [],
+    diagnostics,
+
+    offer_id:
+      raw.offer_id,
+
+    segment_id:
+      raw.segment_id,
+
+    scenario_id:
+      raw.scenario_id,
+
+    currency:
+      raw.currency,
+
+    unit:
+      raw.unit,
+
+    scope_ref:
+      raw.scope_ref,
+
+    effective_date:
+      raw.effective_date,
+
+    geography_ref:
+      raw.geography_ref ?? null,
+
+    methodology_ref:
+      raw.methodology_ref ?? null,
+
+    validation_protocol_ref:
+      raw.validation_protocol_ref ?? null,
+
+    configuration_ref:
+      raw.configuration_ref ?? null,
+
+    technical_change_ref:
+      raw.technical_change_ref ?? null,
+
+    evidence_refs: [
+      ...ceiling.evidence_refs,
+      ...raw.market_context_refs
+    ]
+  };
+}
+
+/* R5 B3.4 AFFORDABILITY EVIDENCE — END */
+
+
 
 
 
 /* R5 CONTRACT FOUNDATION — END */
 
 module.exports = {
+  R5_B3_4_ENUMS,
+  validateAffordabilityEvidenceResultStatus,
+  validateAffordabilityEvidenceInput,
+  evaluateAffordabilityEvidence,
   R5_B3_3_ENUMS,
   validateTargetPolicyStatus,
   validateTargetSupportType,
